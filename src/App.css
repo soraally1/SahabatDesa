@@ -1,0 +1,263 @@
+#root {
+  width: 100%;
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+}
+
+.loading-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.8);
+  padding: 20px;
+  border-radius: 8px;
+  color: white;
+  z-index: 2000;
+}
+
+.loading-bar-container {
+  width: 200px;
+  height: 10px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 5px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+
+.loading-bar {
+  height: 100%;
+  background: #4fc3dc;
+  transition: width 0.3s ease;
+}
+
+.sea-island-container {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  padding-top: 64px;
+}
+
+.sea-island-container canvas {
+  width: 100% !important;
+  height: calc(100% - 64px) !important;
+}
+
+.minimap {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 200px;
+  height: 200px;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 8px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  z-index: 10;
+}
+
+.navigation-controls {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 10px;
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 8px;
+  z-index: 10;
+}
+
+.nav-button {
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.nav-button:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.island-tooltip {
+  position: absolute;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 14px;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.island-label {
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 4px;
+  text-align: center;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.dock-button {
+  display: block;
+  margin-top: 8px;
+  padding: 4px 8px;
+  background: #4fc3dc;
+  border: none;
+  border-radius: 4px;
+  color: white;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.dock-button:hover {
+  background: #3da8c0;
+}
+
+.island-details-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.island-details {
+  background: rgba(0, 0, 0, 0.9);
+  border: 2px solid #4fc3dc;
+  border-radius: 8px;
+  padding: 24px;
+  color: white;
+  max-width: 500px;
+  width: 90%;
+}
+
+.island-details h2 {
+  color: #4fc3dc;
+  margin: 0 0 16px 0;
+  font-size: 24px;
+}
+
+.island-content {
+  margin-bottom: 24px;
+}
+
+.island-stats {
+  margin-top: 16px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+.island-stats div {
+  margin-bottom: 8px;
+}
+
+.island-stats div:last-child {
+  margin-bottom: 0;
+}
+
+.close-button {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  background: #4fc3dc;
+  border: none;
+  border-radius: 4px;
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.close-button:hover {
+  background: #3da8c0;
+}
+
+.minimap-canvas {
+  width: 100%;
+  height: 100%;
+  border-radius: 8px;
+}
+
+.app {
+  width: 100vw;
+  height: 100vh;
+  position: relative;
+  overflow: hidden;
+}
+
+.world-transition-enter {
+  opacity: 0;
+  transform: scale(1.1);
+}
+
+.world-transition-enter-active {
+  opacity: 1;
+  transform: scale(1);
+  transition: opacity 1000ms, transform 1000ms;
+}
+
+.world-transition-exit {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.world-transition-exit-active {
+  opacity: 0;
+  transform: scale(0.9);
+  transition: opacity 1000ms, transform 1000ms;
+}
+
+.transition-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 500ms ease-in-out;
+}
+
+.transition-overlay.active {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.transition-content {
+  text-align: center;
+  color: white;
+}
+
+.transition-spinner {
+  width: 64px;
+  height: 64px;
+  border: 4px solid transparent;
+  border-top-color: #4fc3dc;
+  border-bottom-color: #4fc3dc;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
