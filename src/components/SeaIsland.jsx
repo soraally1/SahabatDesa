@@ -16,7 +16,6 @@ import { motion } from 'framer-motion';
 import gsap from 'gsap';
 import skyTexture from '/textures/skyblue.jpg';
 import AmbientSounds from './AmbientSounds';
-import LoadingScreen from './LoadingScreen';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 
 /* eslint-disable react/no-unknown-property */
@@ -25,7 +24,8 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 const MODEL_PATHS = {
   BOAT: './models/Boat.glb',
   MARKETPLACE: './models/Marketplace.glb',
-  DESA: './models/Desa1.glb'
+  DESA: './models/Desa1.glb',
+  DESA2: './models/Desa2.glb'
 };
 
 // Create a model context to share loaded models
@@ -35,8 +35,23 @@ const ModelContext = React.createContext({
   error: null
 });
 
-// Add display name and prop types for Boat
-const MAX_BOAT_SPEED = 25;  // Slightly reduced for better control
+// Update constants for boat and effects
+const MAX_BOAT_SPEED = 25;
+const ACCELERATION = 0.55;
+const BOOST_MULTIPLIER = 1.5;
+const WATER_RESISTANCE = 0.988;
+const TURN_SPEED = 0.016;
+const TILT_FACTOR = 0.035;
+const WAVE_INTENSITY = 2.8;
+const SMOOTHING_FACTOR = 0.12;
+const WAKE_SCALE = 4.0;
+const FORWARD_TILT = 0.15;
+const BACKWARD_TILT = 0.1;
+const MIN_SPEED_FOR_EFFECTS = 0.1;
+const MAX_WAKE_PARTICLES = 50;
+const MAX_BUBBLES = 30;
+const BUBBLE_LIFETIME = 2.0;
+const MAX_SPEED = 25;
 
 // Preload boat model
 useGLTF.preload(MODEL_PATHS.BOAT);
@@ -46,6 +61,11 @@ const Boat = React.forwardRef((props, ref) => {
   const velocityRef = useRef(new THREE.Vector3());
   const angularVelocityRef = useRef(0);
   const boatRef = useRef();
+  const smoothedPositionRef = useRef(new THREE.Vector3());
+  const previousTiltRef = useRef({ x: 0, z: 0 });
+  const wakeRef = useRef();
+  const wakeParticles = useRef([]);
+  const bubbleParticles = useRef([]);
   const [keys, setKeys] = useState({
     forward: false,
     backward: false,
@@ -54,46 +74,44 @@ const Boat = React.forwardRef((props, ref) => {
     boost: false,
   });
 
-  // Add wake effect
-  const wakeRef = useRef();
-  const wakeParticles = useRef([]);
-  const MAX_WAKE_PARTICLES = 100;
-
-  // Add bubble system constants
-  const MAX_BUBBLES = 50;
-  const BUBBLE_LIFETIME = 2.0;
-  const bubbleParticles = useRef([]);
-
-  // Add waterSplashes state
-  const [waterSplashes, setWaterSplashes] = useState([]);
-
-  // Set up initial scene and keyboard controls
+  // Optimize keyboard handlers using debounce
   const handleKeyDown = useCallback((e) => {
-    e.preventDefault();
-    switch (e.key.toLowerCase()) {
-      case 'w': setKeys(prev => ({ ...prev, backward: true })); break;
-      case 's': setKeys(prev => ({ ...prev, forward: true })); break;
-      case 'a': setKeys(prev => ({ ...prev, left: true })); break;
-      case 'd': setKeys(prev => ({ ...prev, right: true })); break;
-      case 'shift': setKeys(prev => ({ ...prev, boost: true })); break;
-      default: break;
+    // Prevent default only for game controls
+    if (['w', 's', 'a', 'd', 'shift'].includes(e.key.toLowerCase())) {
+      e.preventDefault();
+      
+      setKeys(prev => {
+        switch (e.key.toLowerCase()) {
+          case 'w': return { ...prev, backward: true };
+          case 's': return { ...prev, forward: true };
+          case 'a': return { ...prev, left: true };
+          case 'd': return { ...prev, right: true };
+          case 'shift': return { ...prev, boost: true };
+          default: return prev;
+        }
+      });
     }
   }, []);
 
   const handleKeyUp = useCallback((e) => {
-    switch (e.key.toLowerCase()) {
-      case 'w': setKeys(prev => ({ ...prev, backward: false })); break;
-      case 's': setKeys(prev => ({ ...prev, forward: false })); break;
-      case 'a': setKeys(prev => ({ ...prev, left: false })); break;
-      case 'd': setKeys(prev => ({ ...prev, right: false })); break;
-      case 'shift': setKeys(prev => ({ ...prev, boost: false })); break;
-      default: break;
+    if (['w', 's', 'a', 'd', 'shift'].includes(e.key.toLowerCase())) {
+      setKeys(prev => {
+        switch (e.key.toLowerCase()) {
+          case 'w': return { ...prev, backward: false };
+          case 's': return { ...prev, forward: false };
+          case 'a': return { ...prev, left: false };
+          case 'd': return { ...prev, right: false };
+          case 'shift': return { ...prev, boost: false };
+          default: return prev;
+        }
+      });
     }
   }, []);
 
+  // Optimize event listener attachment
   useEffect(() => {
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('keydown', handleKeyDown, { passive: false });
+    window.addEventListener('keyup', handleKeyUp, { passive: true });
 
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
@@ -140,27 +158,8 @@ const Boat = React.forwardRef((props, ref) => {
     }
   }, [ref]);
 
-  // Update physics constants for better movement
-  const ACCELERATION = 0.35;         // Adjusted for smoother acceleration
-  const MAX_SPEED = MAX_BOAT_SPEED;
-  const BOOST_MULTIPLIER = 1.5;      // Balanced boost speed
-  const WATER_RESISTANCE = 0.988;    // Refined water resistance
-  const TURN_SPEED = 0.016;          // Smoother turning
-  const TILT_FACTOR = 0.035;         // More natural tilt
-  const WAVE_INTENSITY = 2.8;        // Slightly reduced for stability
-  const SMOOTHING_FACTOR = 0.12;     // Enhanced smoothing
-  const WAKE_SCALE = 4.0;
-  const MIN_SPEED_FOR_EFFECTS = 0.05;
-  const FORWARD_TILT = 0.15;         // New constant for forward tilt control
-  const BACKWARD_TILT = 0.1;         // New constant for backward tilt control
-
-  // Add new refs for enhanced smoothing
-  const smoothedPositionRef = useRef(new THREE.Vector3());
-  const smoothedRotationRef = useRef(new THREE.Euler());
-  const previousTiltRef = useRef({ x: 0, z: 0 });
-  
   useEffect(() => {
-    // Initialize wake particles
+    // Initialize wake particles with reduced count
     for (let i = 0; i < MAX_WAKE_PARTICLES; i++) {
       wakeParticles.current.push({
         position: new THREE.Vector3(),
@@ -170,16 +169,16 @@ const Boat = React.forwardRef((props, ref) => {
       });
     }
 
-    // Initialize bubble particles
+    // Initialize bubble particles with reduced count
     for (let i = 0; i < MAX_BUBBLES; i++) {
       bubbleParticles.current.push({
         position: new THREE.Vector3(),
-        scale: 0.1 + Math.random() * 0.3,
-        speed: 0.2 + Math.random() * 0.3,
+        scale: 0.1 + Math.random() * 0.2,
+        speed: 0.2 + Math.random() * 0.2,
         offset: new THREE.Vector3(
-          (Math.random() - 0.5) * 2,
-          Math.random() * 0.5,
-          (Math.random() - 0.5) * 2
+          (Math.random() - 0.5) * 1.5,
+          Math.random() * 0.3,
+          (Math.random() - 0.5) * 1.5
         ),
         age: BUBBLE_LIFETIME
       });
@@ -195,289 +194,205 @@ const Boat = React.forwardRef((props, ref) => {
     const currentSpeed = velocityRef.current.length();
     const speedFactor = currentSpeed / MAX_SPEED;
 
-    // Enhanced movement logic with better tilt control
-    if (keys.forward || keys.backward) {
-      const direction = keys.forward ? -1 : 1;
-      const speedFactor = currentSpeed / MAX_SPEED;
-      const accelerationMultiplier = 1 - (speedFactor * 0.6); // Increased deceleration at high speeds
-      const acceleration = ACCELERATION * direction * speedMultiplier * accelerationMultiplier;
-      const maxSpeedForDirection = keys.forward ? MAX_SPEED : (MAX_SPEED * 0.4); // Reduced backward speed
+    // Only update physics when moving
+    if (keys.forward || keys.backward || keys.left || keys.right || currentSpeed > 0.01) {
+      // Movement logic
+      if (keys.forward || keys.backward) {
+        const direction = keys.forward ? -1 : 1;
+        const accelerationMultiplier = 1 - (speedFactor * 0.6);
+        const acceleration = ACCELERATION * direction * speedMultiplier * accelerationMultiplier;
+        const maxSpeedForDirection = keys.forward ? MAX_SPEED : (MAX_SPEED * 0.4);
 
-      if (currentSpeed < maxSpeedForDirection * speedMultiplier) {
-        const moveVector = new THREE.Vector3(
-          Math.sin(boatRef.current.rotation.y) * acceleration,
-          0,
-          Math.cos(boatRef.current.rotation.y) * acceleration
+        if (currentSpeed < maxSpeedForDirection * speedMultiplier) {
+          velocityRef.current.add(new THREE.Vector3(
+            Math.sin(boatRef.current.rotation.y) * acceleration,
+            0,
+            Math.cos(boatRef.current.rotation.y) * acceleration
+          ));
+        }
+      }
+
+      // Turning logic
+      if (keys.left || keys.right) {
+        const turnDirection = keys.left ? 1 : -1;
+        const turnSpeedCurve = (speedFactor * 0.6 + 0.4);
+        angularVelocityRef.current += TURN_SPEED * turnDirection * turnSpeedCurve;
+        angularVelocityRef.current *= 0.9;
+      } else {
+        angularVelocityRef.current *= 0.85;
+      }
+
+      // Apply physics
+      const speedResistance = 1 - (currentSpeed / MAX_SPEED) * 0.1;
+      velocityRef.current.multiplyScalar(WATER_RESISTANCE * speedResistance);
+      boatRef.current.rotation.y += angularVelocityRef.current;
+
+      // Position updates
+      if (currentSpeed > 0.01) {
+        const predictedPosition = smoothedPositionRef.current.clone()
+          .add(velocityRef.current);
+        boatRef.current.position.lerp(predictedPosition, SMOOTHING_FACTOR);
+        smoothedPositionRef.current.copy(boatRef.current.position);
+      }
+
+      // Wave effect - only when moving
+      if (currentSpeed > MIN_SPEED_FOR_EFFECTS) {
+        const posX = boatRef.current.position.x;
+        const posZ = boatRef.current.position.z;
+        const speedInfluence = Math.max(0, 1 - (currentSpeed / MAX_SPEED) * 0.5);
+        const waveX = Math.sin(time * 0.4 + posX * 0.08) * WAVE_INTENSITY * speedInfluence;
+        const waveZ = Math.cos(time * 0.3 + posZ * 0.08) * WAVE_INTENSITY * speedInfluence;
+        const waveY = Math.sin(time * 0.6) * 0.08 * speedInfluence;
+
+        const targetHeight = -40 + (waveX * 0.4 + waveZ * 0.4 + waveY) * (1 - (currentSpeed / MAX_SPEED) * 0.3);
+        boatRef.current.position.y = THREE.MathUtils.lerp(
+          boatRef.current.position.y,
+          targetHeight,
+          0.08
         );
-        velocityRef.current.add(moveVector);
-      }
-    }
 
-    // Enhanced turning with speed-based handling
-    if (keys.left || keys.right) {
-      const turnDirection = keys.left ? 1 : -1;
-      const speedFactor = Math.min(currentSpeed / MAX_SPEED, 1);
-      // Better turn response curve
-      const turnSpeedCurve = (speedFactor * 0.6 + 0.4);
-      const turnAmount = TURN_SPEED * turnDirection * turnSpeedCurve;
-      
-      // Add slight sideways drift during sharp turns
-      if (speedFactor > 0.3) {
-        const driftForce = new THREE.Vector3(
-          Math.cos(boatRef.current.rotation.y) * turnDirection * speedFactor * 0.015,
-          0,
-          -Math.sin(boatRef.current.rotation.y) * turnDirection * speedFactor * 0.015
+        // Tilt updates - only when moving
+        const speedTilt = currentSpeed / MAX_SPEED * 0.1;
+        const forwardFactor = keys.forward ? FORWARD_TILT : (keys.backward ? -BACKWARD_TILT : 0);
+        
+        const targetTiltX = (velocityRef.current.z * TILT_FACTOR) + 
+                         (Math.cos(time * 0.3 + posZ * 0.08) * 0.02) +
+                         (speedTilt * forwardFactor);
+
+        const targetTiltZ = (-velocityRef.current.x * TILT_FACTOR) - 
+                         (angularVelocityRef.current * 1.2) + 
+                         (Math.sin(time * 0.4 + posX * 0.08) * 0.02);
+
+        previousTiltRef.current.x = THREE.MathUtils.lerp(
+          previousTiltRef.current.x,
+          targetTiltX,
+          0.03
         );
-        velocityRef.current.add(driftForce);
+        
+        previousTiltRef.current.z = THREE.MathUtils.lerp(
+          previousTiltRef.current.z,
+          targetTiltZ,
+          0.03
+        );
+
+        boatRef.current.rotation.x = THREE.MathUtils.clamp(
+          previousTiltRef.current.x,
+          -Math.PI / 8,
+          Math.PI / 12
+        );
+        
+        boatRef.current.rotation.z = THREE.MathUtils.clamp(
+          previousTiltRef.current.z,
+          -Math.PI / 6,
+          Math.PI / 6
+        );
+
+        // Wake effects - only when moving fast enough
+        if (currentSpeed > MIN_SPEED_FOR_EFFECTS * 2) {
+          const particle = wakeParticles.current[0];
+          const wakeScale = (currentSpeed / MAX_SPEED) * WAKE_SCALE;
+          
+          particle.position.copy(boatRef.current.position);
+          particle.position.y = 0;
+          particle.scale = wakeScale;
+          particle.opacity = Math.min(currentSpeed / (MAX_SPEED * 0.3), 1);
+          particle.age = 0;
+          
+          wakeParticles.current.push(wakeParticles.current.shift());
+
+          // Update existing wake particles
+          for (let i = 1; i < MAX_WAKE_PARTICLES; i++) {
+            const p = wakeParticles.current[i];
+            p.age += deltaTime * 0.7;
+            p.opacity = Math.max(0, 1 - p.age * 0.4) * 0.6;
+            p.scale += deltaTime * (1 + currentSpeed * 0.3);
+          }
+
+          // Update bubbles - only when moving fast
+          if (currentSpeed > MAX_SPEED * 0.3) {
+            for (let i = 0; i < MAX_BUBBLES; i++) {
+              const bubble = bubbleParticles.current[i];
+              if (bubble.age >= BUBBLE_LIFETIME) {
+                bubble.position.copy(boatRef.current.position).add(bubble.offset);
+                bubble.position.y -= 1;
+                bubble.age = 0;
+              } else {
+                bubble.position.y += bubble.speed;
+                bubble.age += deltaTime;
+              }
+            }
+          }
+        }
       }
 
-      angularVelocityRef.current += turnAmount;
-      angularVelocityRef.current *= 0.9; // Smooth turn dampening
-    } else {
-      angularVelocityRef.current *= 0.85;
-    }
+      // World boundary check
+      const distanceFromCenter = new THREE.Vector2(
+        boatRef.current.position.x,
+        boatRef.current.position.z
+      ).length();
 
-    // Enhanced water physics
-    const speedResistance = 1 - (currentSpeed / MAX_SPEED) * 0.1;
-    velocityRef.current.multiplyScalar(WATER_RESISTANCE * speedResistance);
-
-    // Smooth rotation handling
-    boatRef.current.rotation.y += angularVelocityRef.current;
-    
-    // Enhanced position smoothing with prediction
-    if (!smoothedPositionRef.current.lengthSq()) {
-      smoothedPositionRef.current.copy(boatRef.current.position);
-    }
-
-    const predictedPosition = smoothedPositionRef.current.clone()
-      .add(velocityRef.current)
-      .add(velocityRef.current.clone().multiplyScalar(deltaTime));
-    
-    // Apply smoothed movement
-    boatRef.current.position.lerp(predictedPosition, SMOOTHING_FACTOR);
-    smoothedPositionRef.current.copy(boatRef.current.position);
-
-    // Enhanced wave effect with speed influence
-    const posX = boatRef.current.position.x;
-    const posZ = boatRef.current.position.z;
-    const speedInfluence = Math.max(0, 1 - (currentSpeed / MAX_SPEED) * 0.5);
-    const waveX = Math.sin(time * 0.4 + posX * 0.08) * WAVE_INTENSITY * speedInfluence;
-    const waveZ = Math.cos(time * 0.3 + posZ * 0.08) * WAVE_INTENSITY * speedInfluence;
-    const waveY = Math.sin(time * 0.6) * 0.08 * speedInfluence;
-
-    // Enhanced height transition with wave compression at speed
-    const targetHeight = -0.5 + 
-      (waveX * 0.4 + waveZ * 0.4 + waveY) * (1 - (currentSpeed / MAX_SPEED) * 0.3);
-    
-    boatRef.current.position.y = THREE.MathUtils.lerp(
-      boatRef.current.position.y,
-      targetHeight,
-      0.08
-    );
-
-    // Enhanced dynamic tilting with better forward/backward control
-    const speedTilt = currentSpeed / MAX_SPEED * 0.1; // Reduced from 0.15
-    const forwardFactor = keys.forward ? FORWARD_TILT : (keys.backward ? -BACKWARD_TILT : 0);
-    
-    const targetTiltX = (velocityRef.current.z * TILT_FACTOR) + 
-                       (Math.cos(time * 0.3 + posZ * 0.08) * 0.02) +
-                       (speedTilt * forwardFactor);
-
-    // Adjust Z-tilt for more stable turning
-    const targetTiltZ = (-velocityRef.current.x * TILT_FACTOR) - 
-                       (angularVelocityRef.current * 1.2) + 
-                       (Math.sin(time * 0.4 + posX * 0.08) * 0.02);
-
-    // Smoother tilt transitions
-    previousTiltRef.current.x = THREE.MathUtils.lerp(
-      previousTiltRef.current.x,
-      targetTiltX,
-      0.03  // Reduced from 0.04 for smoother transition
-    );
-    
-    previousTiltRef.current.z = THREE.MathUtils.lerp(
-      previousTiltRef.current.z,
-      targetTiltZ,
-      0.03  // Reduced from 0.04 for smoother transition
-    );
-
-    // Apply rotation with limits to prevent extreme tilting
-    boatRef.current.rotation.x = THREE.MathUtils.clamp(
-      previousTiltRef.current.x,
-      -Math.PI / 8,  // Limit maximum forward tilt
-      Math.PI / 12   // Limit maximum backward tilt
-    );
-    
-    boatRef.current.rotation.z = THREE.MathUtils.clamp(
-      previousTiltRef.current.z,
-      -Math.PI / 6,  // Limit side tilt
-      Math.PI / 6
-    );
-
-    // Enhanced wake effect
-    if (currentSpeed > MIN_SPEED_FOR_EFFECTS) {
-      const particle = wakeParticles.current[0];
-      const wakeScale = (currentSpeed / MAX_SPEED) * WAKE_SCALE;
-      
-      particle.position.copy(boatRef.current.position);
-      particle.position.y = 0;
-      particle.scale = wakeScale + Math.sin(time * 2) * 0.2; // Animated wake
-      particle.opacity = Math.min(currentSpeed / (MAX_SPEED * 0.3), 1);
-      particle.age = 0;
-      
-      wakeParticles.current.push(wakeParticles.current.shift());
-    }
-
-    // Update existing wake particles with better fade
-    wakeParticles.current.forEach(particle => {
-      particle.age += deltaTime * 0.7;
-      particle.opacity = Math.max(0, 1 - particle.age * 0.4) * 0.6;
-      particle.scale += deltaTime * (1.5 + currentSpeed * 0.5);
-    });
-
-    // Update bubbles
-    bubbleParticles.current.forEach(bubble => {
-      if (currentSpeed > 5 && bubble.age >= BUBBLE_LIFETIME) {
-        // Reset bubble at boat position with random offset
-        bubble.position.copy(boatRef.current.position);
-        bubble.position.add(bubble.offset);
-        bubble.position.y -= 2; // Start slightly below water level
-        bubble.age = 0;
-        bubble.scale = 0.1 + Math.random() * 0.3;
+      if (distanceFromCenter > WORLD_SIZE * 0.45) {
+        const toCenter = new THREE.Vector3(
+          -boatRef.current.position.x,
+          0,
+          -boatRef.current.position.z
+        ).normalize();
+        
+        const boundaryForce = Math.pow((distanceFromCenter - WORLD_SIZE * 0.4) / (WORLD_SIZE * 0.05), 2);
+        velocityRef.current.add(toCenter.multiplyScalar(boundaryForce * 0.5));
       }
-
-      if (bubble.age < BUBBLE_LIFETIME) {
-        // Move bubble up and slightly random
-        bubble.position.y += bubble.speed;
-        bubble.position.x += (Math.random() - 0.5) * 0.1;
-        bubble.position.z += (Math.random() - 0.5) * 0.1;
-        bubble.age += deltaTime;
-      }
-    });
+    }
 
     // Store current speed for camera access
     boatRef.current.userData.speed = currentSpeed;
-
-    // Add world boundary check
-    const distanceFromCenter = new THREE.Vector2(
-      boatRef.current.position.x,
-      boatRef.current.position.z
-    ).length();
-
-    if (distanceFromCenter > WORLD_SIZE * 0.45) {
-      // Add resistance when approaching the boundary
-      const toCenter = new THREE.Vector3(
-        -boatRef.current.position.x,
-        0,
-        -boatRef.current.position.z
-      ).normalize();
-      
-      const boundaryForce = Math.pow((distanceFromCenter - WORLD_SIZE * 0.4) / (WORLD_SIZE * 0.05), 2);
-      velocityRef.current.add(toCenter.multiplyScalar(boundaryForce * 0.5));
-    }
-
-    // Use smoothedRotationRef for rotation smoothing
-    const targetRotation = new THREE.Euler(
-      previousTiltRef.current.x,
-      boatRef.current.rotation.y,
-      previousTiltRef.current.z
-    );
-    
-    smoothedRotationRef.current.x = THREE.MathUtils.lerp(
-      smoothedRotationRef.current.x,
-      targetRotation.x,
-      SMOOTHING_FACTOR
-    );
-    
-    smoothedRotationRef.current.y = THREE.MathUtils.lerp(
-      smoothedRotationRef.current.y,
-      targetRotation.y,
-      SMOOTHING_FACTOR
-    );
-    
-    smoothedRotationRef.current.z = THREE.MathUtils.lerp(
-      smoothedRotationRef.current.z,
-      targetRotation.z,
-      SMOOTHING_FACTOR
-    );
-    
-    boatRef.current.rotation.copy(smoothedRotationRef.current);
-
-    // Add water splash effects based on speed and turning
-    if (currentSpeed > MAX_SPEED * 0.3 || Math.abs(angularVelocityRef.current) > TURN_SPEED * 2) {
-      const splashPositions = [
-        new THREE.Vector3(-2, 0, -1),
-        new THREE.Vector3(2, 0, -1)
-      ];
-      
-      splashPositions.forEach(offset => {
-        const worldPosition = offset.clone()
-          .applyQuaternion(boatRef.current.quaternion)
-          .add(boatRef.current.position);
-          
-        const splashScale = (currentSpeed / MAX_SPEED) * 2;
-        setWaterSplashes(prev => [...prev, {
-          position: worldPosition,
-          scale: splashScale,
-          id: Math.random()
-        }]);
-      });
-    }
-
-    // Enhanced boat rocking animation
-    const rockingAngle = Math.sin(time * 2) * 0.02 * (1 - speedFactor * 0.5);
-    const pitchAngle = Math.sin(time * 1.5) * 0.015 * (1 - speedFactor * 0.5);
-    
-    boatRef.current.rotation.z += (rockingAngle - boatRef.current.rotation.z) * 0.1;
-    boatRef.current.rotation.x += (pitchAngle - boatRef.current.rotation.x) * 0.1;
   });
 
   return (
     <group>
-      <group ref={boatRef} position={props.position || [0, -0.5, 0]}>
+      <group ref={boatRef} position={props.position || [0, -30, 0]}>
         <mesh />
       </group>
       
-      <group ref={wakeRef}>
-        {wakeParticles.current.map((particle, i) => (
-          <mesh
-            key={i}
-            position={particle.position}
-            scale={particle.scale}
-            visible={particle.opacity > 0}
-          >
-            <planeGeometry args={[1, 1]} />
-            <meshBasicMaterial
-              color="#ffffff"
-              transparent
-              opacity={particle.opacity * 0.3}
-              depthWrite={false}
-            />
-          </mesh>
-        ))}
-      </group>
+      {/* Only render wake particles when moving */}
+      {velocityRef.current?.length() > MIN_SPEED_FOR_EFFECTS && (
+        <group ref={wakeRef}>
+          {wakeParticles.current.map((particle, i) => (
+            particle.opacity > 0.1 && (
+              <mesh
+                key={i}
+                position={particle.position}
+                scale={particle.scale}
+              >
+                <planeGeometry args={[1, 1]} />
+                <meshBasicMaterial
+                  color="#ffffff"
+                  transparent
+                  opacity={particle.opacity * 0.3}
+                  depthWrite={false}
+                />
+              </mesh>
+            )
+          ))}
+        </group>
+      )}
       
-      <group>
-        {bubbleParticles.current.map((bubble, i) => (
-          <mesh
-            key={`bubble-${i}`}
-            position={bubble.position}
-            scale={bubble.scale}
-            visible={bubble.age < BUBBLE_LIFETIME}
-          >
-            <sphereGeometry args={[1, 12, 12]} />
-            <BubbleMaterial />
-          </mesh>
-        ))}
-      </group>
-
-      {waterSplashes.map(splash => (
-        <WaterSplash 
-          key={splash.id}
-          position={splash.position}
-          scale={splash.scale}
-        />
-      ))}
+      {/* Only render bubbles when moving fast */}
+      {velocityRef.current?.length() > MAX_SPEED * 0.3 && (
+        <group>
+          {bubbleParticles.current.map((bubble, i) => (
+            bubble.age < BUBBLE_LIFETIME && (
+              <mesh
+                key={`bubble-${i}`}
+                position={bubble.position}
+                scale={bubble.scale}
+              >
+                <sphereGeometry args={[1, 8, 8]} />
+                <BubbleMaterial />
+              </mesh>
+            )
+          ))}
+        </group>
+      )}
     </group>
   );
 });
@@ -572,23 +487,24 @@ AppErrorBoundary.propTypes = {
 // Update model loader to use proper loading method
 const useModelLoader = () => {
   const [modelLoadError, setModelLoadError] = useState(null);
-  const [models, setModels] = useState({ marketplace: null, desa: null });
+  const [models, setModels] = useState({ marketplace: null, desa: null, desa2: null });
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const loadModels = async () => {
       try {
         const loader = new GLTFLoader();
-        const [marketplaceResult, desaResult] = await Promise.all([
+        const [marketplaceResult, desaResult, desa2Result] = await Promise.all([
           loader.loadAsync(MODEL_PATHS.MARKETPLACE),
-          loader.loadAsync(MODEL_PATHS.DESA)
+          loader.loadAsync(MODEL_PATHS.DESA),
+          loader.loadAsync(MODEL_PATHS.DESA2)
         ]);
 
-        if (!marketplaceResult.scene || !desaResult.scene) {
+        if (!marketplaceResult.scene || !desaResult.scene || !desa2Result.scene) {
           throw new Error('Failed to load one or more models');
         }
 
-        [marketplaceResult.scene, desaResult.scene].forEach(scene => {
+        [marketplaceResult.scene, desaResult.scene, desa2Result.scene].forEach(scene => {
           scene.traverse((child) => {
             if (child.isMesh) {
               child.castShadow = true;
@@ -602,7 +518,8 @@ const useModelLoader = () => {
 
         setModels({
           marketplace: { scene: marketplaceResult.scene },
-          desa: { scene: desaResult.scene }
+          desa: { scene: desaResult.scene },
+          desa2: { scene: desa2Result.scene }
         });
         setIsLoading(false);
       } catch (error) {
@@ -667,18 +584,25 @@ const Buildings = React.memo(() => {
 
     const positions = [
       {
-        position: [100, -2, 100],
+        position: [100, -35, 100],
         rotation: [0, -Math.PI / 4, 0],
         scale: [50, 50, 50],
         type: 'marketplace',
         name: 'Main Marketplace'
       },
       {
-        position: [-250, -2, 250],
+        position: [-250, -35, 250],
         rotation: [0, Math.PI / 4, 0],
         scale: [35, 35, 35],
         type: 'desa',
         name: 'Village Center'
+      },
+      {
+        position: [-400, -35, 250],
+        rotation: [0, Math.PI / 6, 0],
+        scale: [40, 40, 40],
+        type: 'desa2',
+        name: 'Coastal Village'
       }
     ];
 
@@ -1007,8 +931,13 @@ const BubbleMaterial = () => {
 };
 
 // Add these constants at the top level
-const WORLD_SIZE = 6000;  // Reduced world size
-const RENDER_DISTANCE = 4000; // Reduced view distance
+const WORLD_SIZE = 3000;  // Reduced world size
+const RENDER_DISTANCE = 2000; // Reduced view distance
+const LOD_DISTANCES = {
+  HIGH: 500,
+  MEDIUM: 1000,
+  LOW: 1500
+};
 
 
 // Add enhanced water splash effect
@@ -1091,12 +1020,19 @@ const SkyBox = () => {
 
   useEffect(() => {
     const loader = new THREE.TextureLoader();
+    let isSubscribed = true;
+
     loader.load(skyTexture, (loadedTexture) => {
-      setTexture(loadedTexture);
+      if (isSubscribed) {
+        setTexture(loadedTexture);
+      }
     });
 
     return () => {
-      if (texture) texture.dispose();
+      isSubscribed = false;
+      if (texture) {
+        texture.dispose();
+      }
     };
   }, []);
 
@@ -1177,11 +1113,16 @@ const translations = {
     id: 'Pusat Desa',
     description: 'Desa nelayan yang damai dan terkenal dengan hasil lautnya'
   },
+  desa2: {
+    id: 'Desa Pesisir',
+    description: 'Perkampungan nelayan tradisional dengan pemandangan pantai yang indah'
+  },
   visitButton: 'Kunjungi Pulau',
   dockPrompt: 'Tekan E untuk berlabuh',
   type: {
     marketplace: 'Pasar',
-    desa: 'Desa'
+    desa: 'Desa',
+    desa2: 'Desa'
   }
 };
 
@@ -1194,6 +1135,7 @@ const SeaIsland = () => {
     nearestIsland: null,
     canDock: false
   });
+  const [clickedIsland, setClickedIsland] = useState(null);
   const boatRef = useRef();
   const [cameraPosition, setCameraPosition] = useState({ x: 0, z: 0 });
 
@@ -1238,6 +1180,15 @@ const SeaIsland = () => {
         name: 'Village Center',
         description: 'A peaceful village known for its fishing',
         route: '/village'
+      },
+      {
+        position: [-400, -2, 250],
+        rotation: [0, Math.PI / 6, 0],
+        scale: [40, 40, 40],
+        type: 'desa2',
+        name: 'Coastal Village',
+        description: 'Traditional fishing village with beautiful coastal views',
+        route: '/coastal-village'
       }
     ];
 
@@ -1317,6 +1268,7 @@ const SeaIsland = () => {
 
     const targetPosition = islandInteractions.nearestIsland.dockingPoint;
     const targetRotation = islandInteractions.nearestIsland.dockingRotation;
+    const nearestIsland = islandInteractions.nearestIsland;
 
     // Stop boat movement
     if (boatRef.current.userData.velocityRef) {
@@ -1340,21 +1292,12 @@ const SeaIsland = () => {
       duration: 1.5,
       ease: "power2.inOut",
       onComplete: () => {
-        // Navigate to island page
-        const islandName = island.name.toLowerCase().replace(/\s+/g, '-');
-        window.location.href = `/island/${island.type}/${islandName}`;
+        // Fix: Use nearestIsland instead of island
+        const islandName = nearestIsland.name.toLowerCase().replace(/\s+/g, '-');
+        window.location.href = `/island/${nearestIsland.type}/${islandName}`;
       }
     });
   }, [islandInteractions]);
-
-  // Add new state for clicked island
-  const [clickedIsland, setClickedIsland] = useState(null);
-
-  // Update handleIslandClick
-  const handleIslandClick = useCallback((island) => {
-    // Toggle clicked state
-    setClickedIsland(prev => prev?.id === island.id ? null : island);
-  }, []);
 
   // Update keyboard handler
   useEffect(() => {
@@ -1432,236 +1375,119 @@ const SeaIsland = () => {
     return () => window.removeEventListener('click', handleClickOutside);
   }, []);
 
+  const handleIslandClick = useCallback((island) => {
+    setClickedIsland(prevIsland => 
+      prevIsland?.id === island.id ? null : island
+    );
+  }, []);
+
   return (
     <div className="w-full h-screen">
       <AppErrorBoundary>
         <Canvas 
-          shadows="soft" 
+          shadows="basic" 
           camera={cameraSettings}
-          dpr={[1, 2]}
+          dpr={Math.min(2, window.devicePixelRatio)} // Limit DPR for performance
           performance={{ min: 0.5 }}
+          gl={{
+            powerPreference: "high-performance",
+            antialias: false, // Disable antialias for better performance
+            stencil: false,
+            depth: true,
+            alpha: false
+          }}
           onCreated={({ gl }) => {
             gl.setClearColor('#87CEEB');
-            // Enable context preservation
             gl.preserveDrawingBuffer = true;
+            gl.physicallyCorrectLights = true;
+            
+            // Optimize renderer
+            gl.setPixelRatio(Math.min(2, window.devicePixelRatio));
+            gl.setSize(window.innerWidth, window.innerHeight);
+            gl.shadowMap.enabled = true;
+            gl.shadowMap.type = THREE.PCFSoftShadowMap;
+            gl.outputEncoding = THREE.sRGBEncoding;
           }}
         >
           <color attach="background" args={['#87CEEB']} />
-          <fog attach="fog" args={['#87CEEB', RENDER_DISTANCE * 0.4, RENDER_DISTANCE]} />
+          <fog attach="fog" args={['#87CEEB', RENDER_DISTANCE * 0.3, RENDER_DISTANCE * 0.8]} />
           
-          <Suspense fallback={<LoadingScreen />}>
+          <Suspense fallback={null}>
             <ModelProvider>
               {assetsLoaded && (
                 <group>
                   <SkyBox />
                   <MemoizedBuildings islands={islands} />
-                  <MemoizedBoat ref={boatRef} position={[0, -0.5, 0]} />
+                  <MemoizedBoat ref={boatRef} position={[0, -30, 0]} />
                   <FollowCamera target={boatRef} />
                   <MemoizedSea />
-                  <MemoizedClouds />
-                  <MemoizedBirds />
+                  {/* Only render clouds and birds when close enough */}
+                  {cameraPosition.y < LOD_DISTANCES.MEDIUM && <MemoizedClouds />}
+                  {cameraPosition.y < LOD_DISTANCES.HIGH && <MemoizedBirds />}
                   <Stars 
                     radius={WORLD_SIZE / 2} 
                     depth={50} 
-                    count={2000}
+                    count={1000} // Reduced star count
                     factor={4} 
                     saturation={0} 
                     fade 
-                    speed={1} 
+                    speed={0.5} 
                   />
                   <Environment preset="sunset" />
-                  <Lighting />
+                  <OptimizedLighting />
 
-                  {/* Add docking points */}
-                  {islands.map((island, index) => (
-                    <group key={`dock-${index}`}>
-                      <DockingPoint
-                        position={[island.dockingPoint.x, 0, island.dockingPoint.z]}
-                        isActive={island === islandInteractions.nearestIsland && islandInteractions.canDock}
-                      />
-                    </group>
-                  ))}
+                  {/* Only render UI elements when close enough */}
+                  {islands.map((island, index) => {
+                    const distance = new THREE.Vector3(...island.position)
+                      .distanceTo(new THREE.Vector3(cameraPosition.x, island.position[1], cameraPosition.z));
+                    
+                    if (distance > LOD_DISTANCES.MEDIUM) return null;
+                    
+                    return (
+                      <group key={index} position={island.position}>
+                        <Html
+                          position={[0, 40, 0]}
+                          center
+                          occlude
+                          transform
+                          sprite
+                        >
+                          <IslandUI 
+                            island={island}
+                            clickedIsland={clickedIsland}
+                            handleIslandClick={handleIslandClick}
+                            cameraPosition={cameraPosition}
+                            isHighlighted={island.isHighlighted}
+                          />
+                        </Html>
+                      </group>
+                    );
+                  })}
+
+                  {/* Only render docking points when close enough */}
+                  {islands.map((island, index) => {
+                    const distance = new THREE.Vector3(island.dockingPoint.x, 0, island.dockingPoint.z)
+                      .distanceTo(new THREE.Vector3(cameraPosition.x, 0, cameraPosition.z));
+                    
+                    if (distance > LOD_DISTANCES.HIGH) return null;
+                    
+                    return (
+                      <group key={`dock-${index}`}>
+                        <DockingPoint
+                          position={[island.dockingPoint.x, 0, island.dockingPoint.z]}
+                          isActive={island === islandInteractions.nearestIsland && islandInteractions.canDock}
+                        />
+                      </group>
+                    );
+                  })}
                 </group>
               )}
             </ModelProvider>
           </Suspense>
-
-          {/* Enhanced island highlight effects */}
-          {assetsLoaded && islands.map((island, index) => {
-            const distanceToCamera = new THREE.Vector3(...island.position)
-              .distanceTo(new THREE.Vector3(cameraPosition.x, island.position[1], cameraPosition.z));
-            
-            const uiScale = getScaleBasedOnDistance(distanceToCamera);
-            const translation = translations[island.type];
-
-            return (
-              <group 
-                key={index} 
-                position={island.position}
-                onClick={() => handleIslandClick(island)}
-              >
-                <Html position={[0, 40, 0]} center>
-                  <motion.div 
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ 
-                      opacity: island.isHighlighted || clickedIsland?.id === island.id ? 1 : 0.8,
-                      y: clickedIsland?.id === island.id ? 0 : -5,
-                      scale: clickedIsland?.id === island.id ? uiScale * 1.1 : uiScale
-                    }}
-                    whileHover={{ 
-                      scale: uiScale * 1.05,
-                      y: -8,
-                      transition: { duration: 0.2, ease: "easeOut" }
-                    }}
-                    transition={{ duration: 0.2 }}
-                    className={`
-                      relative px-8 py-5 rounded-xl
-                      backdrop-blur-md cursor-pointer
-                      border border-white/20
-                      shadow-lg shadow-black/20
-                      transition-all duration-200
-                      group
-                      ${clickedIsland?.id === island.id 
-                        ? 'bg-white/30 text-white border-white/40' 
-                        : island.isHighlighted
-                          ? 'bg-white/20 text-white hover:bg-white/25 hover:border-white/30'
-                          : 'bg-black/30 text-white/90 hover:bg-black/40 hover:border-white/30'
-                      }
-                    `}
-                    style={{
-                      transformOrigin: 'center center',
-                      opacity: distanceToCamera > 800 ? 0 : undefined,
-                      transform: `perspective(1000px) rotateX(${island.isHighlighted ? -5 : 0}deg)`
-                    }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleIslandClick(island);
-                    }}
-                  >
-                    {/* Glow effect */}
-                    {(clickedIsland?.id === island.id || island.isHighlighted) && (
-                      <motion.div 
-                        className={`
-                          absolute inset-0 -z-10 rounded-xl blur-xl
-                          ${clickedIsland?.id === island.id 
-                            ? 'bg-white/30' 
-                            : 'bg-white/20'
-                          }
-                        `}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ duration: 0.3 }}
-                      />
-                    )}
-
-                    {/* Hover highlight */}
-                    <div className="absolute inset-0 rounded-xl bg-gradient-to-t from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
-
-                    {/* Main content */}
-                    <div className="flex flex-col items-center gap-3 relative">
-                      <motion.h3 
-                        className="text-2xl font-bold tracking-wider text-white
-                                   drop-shadow-lg
-                                   font-display"
-                        animate={{ 
-                          scale: island.isHighlighted ? 1.05 : 1,
-                          y: island.isHighlighted ? -2 : 0
-                        }}
-                        transition={{ duration: 0.2 }}
-                      >
-                        {translation.id}
-                      </motion.h3>
-
-                      <motion.span 
-                        className="text-sm font-medium tracking-wider uppercase px-4 py-1.5 rounded-full 
-                                   bg-white/10 backdrop-blur-sm
-                                   group-hover:bg-white/15 transition-colors duration-200
-                                   border border-white/10 group-hover:border-white/20
-                                   shadow-sm"
-                        animate={{ 
-                          scale: island.isHighlighted ? 1.05 : 1
-                        }}
-                        transition={{ duration: 0.2, delay: 0.05 }}
-                      >
-                        {translations.type[island.type]}
-                      </motion.span>
-                      
-                      {/* Enhanced description animation */}
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ 
-                          opacity: clickedIsland?.id === island.id ? 1 : 0,
-                          height: clickedIsland?.id === island.id ? 'auto' : 0
-                        }}
-                        className="overflow-hidden w-full"
-                      >
-                        <motion.p 
-                          className="text-base text-center text-white/90 mt-2 max-w-[240px] mx-auto
-                                     leading-relaxed font-light tracking-wide
-                                     [text-wrap:balance]"
-                          initial={{ y: 10, opacity: 0 }}
-                          animate={{ 
-                            y: clickedIsland?.id === island.id ? 0 : 10,
-                            opacity: clickedIsland?.id === island.id ? 1 : 0
-                          }}
-                          transition={{ duration: 0.3, delay: 0.1 }}
-                        >
-                          {translation.description}
-                        </motion.p>
-                        
-                        {/* Enhanced button animation */}
-                        <motion.div
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ 
-                            opacity: clickedIsland?.id === island.id ? 1 : 0,
-                            y: clickedIsland?.id === island.id ? 0 : 10
-                          }}
-                          transition={{ delay: 0.2 }}
-                          className="mt-5 flex flex-col items-center gap-2"
-                        >
-                          <button 
-                            className="px-6 py-2.5 bg-white/20 hover:bg-white/30 rounded-lg
-                                       transition-all duration-200 
-                                       text-base font-semibold tracking-wide
-                                       hover:scale-105 active:scale-95
-                                       shadow-lg shadow-black/10
-                                       border border-white/10 hover:border-white/20
-                                       backdrop-blur-sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              window.location.href = `/island/${island.type}/${island.name.toLowerCase().replace(/\s+/g, '-')}`;
-                            }}
-                          >
-                            {translations.visitButton}
-                          </button>
-                        </motion.div>
-                      </motion.div>
-
-                      {/* Enhanced docking indicator */}
-                      {island === islandInteractions.nearestIsland && islandInteractions.canDock && (
-                        <motion.div
-                          initial={{ opacity: 0, y: 5 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          className="mt-3 flex items-center gap-3 text-green-400
-                                     bg-green-400/10 px-4 py-2 rounded-full
-                                     border border-green-400/20"
-                        >
-                          <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-                          <span className="text-sm font-medium tracking-wider">
-                            {translations.dockPrompt}
-                          </span>
-                        </motion.div>
-                      )}
-                    </div>
-                  </motion.div>
-                </Html>
-              </group>
-            );
-          })}
         </Canvas>
       </AppErrorBoundary>
 
-      {/* Enhanced docking UI */}
+      {/* UI outside Canvas */}
       {assetsLoaded && boatRef.current && islandInteractions.canDock && (
         <motion.div
           className="fixed bottom-32 left-1/2 transform -translate-x-1/2"
@@ -1694,39 +1520,175 @@ const SeaIsland = () => {
   );
 };
 
-// Add enhanced lighting setup
-const Lighting = React.memo(() => {
-  const shadowMapSize = 2048; // Increased shadow map resolution
+// Separate IslandUI component
+const IslandUI = ({ island, clickedIsland, handleIslandClick, cameraPosition, isHighlighted }) => {
+  const distanceToCamera = new THREE.Vector3(...island.position)
+    .distanceTo(new THREE.Vector3(cameraPosition.x, island.position[1], cameraPosition.z));
+  
+  // Reduce initial scale for better performance
+  const uiScale = getScaleBasedOnDistance(distanceToCamera) * 2.5;
+
+  // Skip rendering if too far away - increased threshold for performance
+  if (distanceToCamera > 600) return null;
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ 
+        opacity: isHighlighted || clickedIsland?.id === island.id ? 1 : 0.9,
+        scale: clickedIsland?.id === island.id ? uiScale * 1.2 : uiScale
+      }}
+      whileHover={{ 
+        scale: uiScale * 1.15,
+        transition: { duration: 0.3 }
+      }}
+      transition={{ 
+        duration: 0.3,
+        ease: "easeOut"
+      }}
+      className={`
+        relative px-32 py-16 rounded-[48px]
+        backdrop-blur-lg cursor-pointer
+        border-[6px] border-white/30
+        shadow-2xl
+        transition-all duration-200
+        group min-w-[800px]
+        ${clickedIsland?.id === island.id 
+          ? 'bg-white/40 text-black border-white/50' 
+          : isHighlighted
+            ? 'bg-white/30 text-black hover:bg-white/35 hover:border-white/50'
+            : 'bg-black/40 text-white hover:bg-black/50 hover:border-white/40'
+        }
+        hover:backdrop-blur-xl
+        transform-gpu
+      `}
+      style={{
+        willChange: 'transform',
+        transformOrigin: 'center center',
+        transform: `perspective(1000px) rotateX(${isHighlighted ? -2 : 0}deg)`,
+        transformStyle: 'preserve-3d'
+      }}
+      onClick={(e) => {
+        e.stopPropagation();
+        handleIslandClick(island);
+      }}
+    >
+      {/* Enhanced glow effect */}
+      <div className="absolute inset-0 -z-10 bg-gradient-to-r from-cyan-500/40 via-blue-500/40 to-purple-500/40 opacity-0 group-hover:opacity-100 blur-[64px] transition-opacity duration-300" />
+
+      {/* Island UI content */}
+      <div className="flex flex-col items-center gap-10 relative">
+        <motion.h3 
+          className="text-8xl font-bold tracking-wider drop-shadow-2xl font-display
+                     group-hover:text-transparent group-hover:bg-clip-text 
+                     group-hover:bg-gradient-to-r group-hover:from-white group-hover:via-cyan-200 group-hover:to-blue-200
+                     transition-colors duration-200"
+          animate={{ 
+            scale: isHighlighted ? 1.05 : 1
+          }}
+          transition={{ duration: 0.2 }}
+        >
+          {island.name}
+        </motion.h3>
+
+        <motion.span 
+          className="text-3xl font-medium tracking-wider uppercase px-12 py-6 rounded-full
+                     bg-white/20 backdrop-blur-lg
+                     group-hover:bg-white/30 transition-colors duration-200
+                     border-4 border-white/20 group-hover:border-white/40
+                     shadow-2xl"
+          animate={{ 
+            scale: isHighlighted ? 1.05 : 1
+          }}
+          transition={{ duration: 0.2 }}
+        >
+          {translations.type[island.type]}
+        </motion.span>
+
+        {/* Island description and actions */}
+        {clickedIsland?.id === island.id && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.2 }}
+            className="w-full"
+          >
+            <motion.p 
+              className="text-3xl text-center mt-8 max-w-[1000px] mx-auto
+                         leading-relaxed font-light tracking-wide
+                         group-hover:text-white transition-colors duration-200"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.2 }}
+            >
+              {island.description}
+            </motion.p>
+
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.2 }}
+              className="mt-16 flex flex-col items-center gap-6"
+            >
+              <button 
+                className="px-20 py-8 bg-white/30 hover:bg-white/40 rounded-3xl
+                           transition-all duration-200
+                           text-3xl font-bold tracking-wider
+                           hover:scale-105 active:scale-95
+                           shadow-2xl
+                           border-4 border-white/20 hover:border-white/40
+                           backdrop-blur-lg
+                           relative overflow-hidden
+                           group/btn
+                           min-w-[400px]"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  window.location.href = `/island/${island.type}/${island.name.toLowerCase().replace(/\s+/g, '-')}`;
+                }}
+              >
+                <span className="relative group-hover/btn:tracking-wider transition-all duration-200
+                               drop-shadow-lg">
+                  {translations.visitButton}
+                </span>
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </div>
+    </motion.div>
+  );
+};
+
+IslandUI.propTypes = {
+  island: PropTypes.shape({
+    id: PropTypes.string.isRequired,
+    name: PropTypes.string.isRequired,
+    type: PropTypes.string.isRequired,
+    description: PropTypes.string.isRequired,
+    position: PropTypes.arrayOf(PropTypes.number).isRequired
+  }).isRequired,
+  clickedIsland: PropTypes.object,
+  handleIslandClick: PropTypes.func.isRequired,
+  cameraPosition: PropTypes.object.isRequired,
+  isHighlighted: PropTypes.bool.isRequired
+};
+
+// Optimize lighting for better performance
+const OptimizedLighting = React.memo(() => {
+  const shadowMapSize = 1024; // Reduced shadow map size
   
   return (
     <>
-      <ambientLight intensity={0.5} /> {/* Slightly reduced for better shadow contrast */}
+      <ambientLight intensity={0.5} />
       
-      {/* Main directional light with enhanced shadows */}
+      {/* Main directional light with optimized shadows */}
       <directionalLight 
         position={[100, 100, 50]} 
         intensity={1.5}
         castShadow
         shadow-mapSize-width={shadowMapSize}
         shadow-mapSize-height={shadowMapSize}
-        shadow-camera-far={RENDER_DISTANCE}
-        shadow-camera-near={1}
-        shadow-camera-left={-500}
-        shadow-camera-right={500}
-        shadow-camera-top={500}
-        shadow-camera-bottom={-500}
-        shadow-bias={-0.001} // Reduces shadow acne
-        shadow-normalBias={0.02} // Helps with geometric edges
-      />
-      
-      {/* Secondary directional light for softer shadows */}
-      <directionalLight
-        position={[-50, 80, -50]}
-        intensity={0.3}
-        castShadow
-        shadow-mapSize-width={1024}
-        shadow-mapSize-height={1024}
-        shadow-camera-far={RENDER_DISTANCE / 2}
+        shadow-camera-far={RENDER_DISTANCE * 0.5}
         shadow-camera-near={1}
         shadow-camera-left={-300}
         shadow-camera-right={300}
@@ -1734,28 +1696,17 @@ const Lighting = React.memo(() => {
         shadow-camera-bottom={-300}
         shadow-bias={-0.001}
       />
-
+      
+      {/* Removed secondary directional light for performance */}
       <hemisphereLight 
         skyColor="#b1e1ff" 
         groundColor="#000000" 
         intensity={0.6}
       />
-      
-      {/* Add strategic point lights for better building illumination */}
-      <pointLight
-        position={[0, 100, 0]}
-        intensity={0.4}
-        distance={1000}
-        decay={2}
-        castShadow
-        shadow-mapSize-width={512}
-        shadow-mapSize-height={512}
-        shadow-bias={-0.001}
-      />
     </>
   );
 });
 
-Lighting.displayName = 'Lighting';
+OptimizedLighting.displayName = 'OptimizedLighting';
 
 export default SeaIsland;

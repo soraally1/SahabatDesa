@@ -1,0 +1,33 @@
+{
+  "extends": [
+    "eslint:recommended",
+    "plugin:react/recommended"
+  ],
+  "plugins": ["react"],
+  "rules": {
+    "react/no-unknown-property": ["error", {
+      "ignore": [
+        "attach",
+        "args",
+        "object",
+        "position",
+        "rotation",
+        "intensity",
+        "castShadow",
+        "geometry",
+        "material",
+        "emissive",
+        "emissiveIntensity",
+        "metalness",
+        "roughness",
+        "alphaTest",
+        "groundColor"
+      ]
+    }]
+  },
+  "settings": {
+    "react": {
+      "version": "detect"
+    }
+  }
+} 
