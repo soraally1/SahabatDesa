@@ -5,7 +5,7 @@ import Navbar from './components/Navbar';
 import IslandScene from './components/IslandScene';
 import BoatLoadingScreen from './components/BoatLoadingScreen';
 import './App.css';
-import Desa1 from './components/Desa1';
+import Desa1 from './components/Desa1/Desa';
 
 function AppContent() {
   return (
