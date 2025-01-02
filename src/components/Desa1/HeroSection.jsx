@@ -1,6 +1,5 @@
 import { motion } from 'framer-motion';
 import { MdLocationOn } from 'react-icons/md';
-import { BsArrowDownCircle } from 'react-icons/bs';
 import DesaPagaitan from '../../assets/img/DesaPagaitan.jpg';
 
 const HeroSection = () => (
@@ -48,21 +47,6 @@ const HeroSection = () => (
         >
           Selamat datang di Desa Pagaitan, sebuah permata tersembunyi di jantung Sulawesi Utara
         </motion.p>
-      </motion.div>
-      
-      <motion.div
-        animate={{ 
-          y: [0, 10, 0],
-          opacity: [0.8, 0.4, 0.8]
-        }}
-        transition={{ 
-          repeat: Infinity, 
-          duration: 2,
-          ease: "easeInOut"
-        }}
-        className="absolute bottom-8 left-1/2 transform -translate-x-1/2"
-      >
-        <BsArrowDownCircle className="text-3xl sm:text-4xl text-white/80 hover:text-green-400 transition-colors cursor-pointer" />
       </motion.div>
     </div>
   </div>
