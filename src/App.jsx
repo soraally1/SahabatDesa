@@ -6,6 +6,8 @@ import IslandScene from './components/IslandScene';
 import BoatLoadingScreen from './components/BoatLoadingScreen';
 import './App.css';
 import Desa1 from './components/Desa1/Desa';
+import Desa2 from './components/Desa2/Desa';
+import Desa3 from './components/Desa3/Desa';
 
 function AppContent() {
   return (
@@ -29,6 +31,24 @@ function AppContent() {
           <>
             <Navbar />
             <Desa1 />
+          </>
+        } 
+      />
+      <Route 
+        path="/islands/desa2" 
+        element={
+          <>
+            <Navbar />
+            <Desa2 />
+          </>
+        } 
+      />
+      <Route 
+        path="/islands/desa3" 
+        element={
+          <>
+            <Navbar />
+            <Desa3 />
           </>
         } 
       />
