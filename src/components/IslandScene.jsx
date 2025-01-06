@@ -305,7 +305,7 @@ const IslandScene = () => {
       rotation: [0, -Math.PI / 4, 0],
       scale: [30, 30, 30],
       modelPath: '/models/Desa2.glb',
-      route: '/desa2',
+      route: '/islands/desa2',
       name: 'Desa Kreatif',
       description: 'Pusat inovasi dan kreativitas dengan fokus pada ekonomi kreatif dan digital.'
     },
@@ -314,7 +314,7 @@ const IslandScene = () => {
         rotation: [0, -Math.PI / 4, 0],
         scale: [50, 50, 50],
         modelPath: '/models/Desa3.glb',
-        route: '/desa3',
+        route: '/islands/desa3',
         name: 'Desa Wisata',
         description: 'Tempat wisata yang menawarkan pengalaman unik dan menarik.'
       },
@@ -323,7 +323,7 @@ const IslandScene = () => {
         rotation: [0, -50, 0],
         scale: [10, 10, 10],
         modelPath: '/models/Desa4.glb',
-        route: '/desa3',
+        route: '/desa4',
         name: 'Desa Pembangun',
         description: 'Desa yang fokus pada pembangunan infrastruktur dan pemerataan pendidikan.'
       }
