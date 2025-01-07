@@ -263,8 +263,10 @@ const IslandScene = () => {
   const [isZooming, setIsZooming] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const [isEntering, setIsEntering] = useState(true);
+  const [currentIslandIndex, setCurrentIslandIndex] = useState(0);
   const navigate = useNavigate();
   const controlsRef = useRef();
+  const isMobile = window.innerWidth < 768;
 
   useEffect(() => {
     // Disable controls during entrance animation
@@ -310,24 +312,67 @@ const IslandScene = () => {
       description: 'Pusat inovasi dan kreativitas dengan fokus pada ekonomi kreatif dan digital.'
     },
     {
-        position: [450, -50, 50],
-        rotation: [0, -Math.PI / 4, 0],
-        scale: [50, 50, 50],
-        modelPath: '/models/Desa3.glb',
-        route: '/islands/desa3',
-        name: 'Desa Wisata',
-        description: 'Tempat wisata yang menawarkan pengalaman unik dan menarik.'
-      },
-      {
-        position: [-450, -50, 50],
-        rotation: [0, -50, 0],
-        scale: [10, 10, 10],
-        modelPath: '/models/Desa4.glb',
-        route: '/desa4',
-        name: 'Desa Pembangun',
-        description: 'Desa yang fokus pada pembangunan infrastruktur dan pemerataan pendidikan.'
-      }
+      position: [450, -50, 50],
+      rotation: [0, -Math.PI / 4, 0],
+      scale: [50, 50, 50],
+      modelPath: '/models/Desa3.glb',
+      route: '/islands/desa3',
+      name: 'Desa Wisata',
+      description: 'Tempat wisata yang menawarkan pengalaman unik dan menarik.'
+    },
+    {
+      position: [-450, -50, 50],
+      rotation: [0, -50, 0],
+      scale: [10, 10, 10],
+      modelPath: '/models/Desa4.glb',
+      route: '/desa4',
+      name: 'Desa Pembangun',
+      description: 'Desa yang fokus pada pembangunan infrastruktur dan pemerataan pendidikan.'
+    }
   ];
+
+  // Add mobile navigation controls
+  const handlePrevIsland = () => {
+    setCurrentIslandIndex((prev) => (prev === 0 ? islands.length - 1 : prev - 1));
+    setSelectedIsland(islands[(currentIslandIndex === 0 ? islands.length - 1 : currentIslandIndex - 1)]);
+    setIsZooming(true);
+  };
+
+  const handleNextIsland = () => {
+    setCurrentIslandIndex((prev) => (prev === islands.length - 1 ? 0 : prev + 1));
+    setSelectedIsland(islands[(currentIslandIndex === islands.length - 1 ? 0 : currentIslandIndex + 1)]);
+    setIsZooming(true);
+  };
+
+  // Add touch event handlers for swipe navigation
+  const touchStartX = useRef(null);
+  const handleTouchStart = (e) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = (e) => {
+    if (!touchStartX.current) return;
+    
+    const touchEndX = e.changedTouches[0].clientX;
+    const deltaX = touchEndX - touchStartX.current;
+    
+    if (Math.abs(deltaX) > 50) { // Minimum swipe distance
+      if (deltaX > 0) {
+        handlePrevIsland();
+      } else {
+        handleNextIsland();
+      }
+    }
+    
+    touchStartX.current = null;
+  };
+
+  useEffect(() => {
+    if (isMobile) {
+      setSelectedIsland(islands[currentIslandIndex]);
+      setIsZooming(true);
+    }
+  }, [currentIslandIndex, isMobile]);
 
   const handleIslandClick = (island) => {
     if (selectedIsland === island) return;
@@ -364,42 +409,295 @@ const IslandScene = () => {
       animate={{ opacity: 1 }}
       transition={{ duration: 1.5 }}
       style={{ width: '100vw', height: '100vh' }}
+      onTouchStart={isMobile ? handleTouchStart : undefined}
+      onTouchEnd={isMobile ? handleTouchEnd : undefined}
     >
-      {showInfo && selectedIsland && (
-        <motion.div
-          initial={{ opacity: 0, y: 50 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 50 }}
-          className="fixed bottom-4 sm:bottom-10 left-1/2 transform -translate-x-1/2 z-10 
-            bg-white/90 backdrop-blur-md p-4 sm:p-8 rounded-xl sm:rounded-2xl shadow-xl 
-            border-2 sm:border-4 border-green-500/30 w-[90%] sm:w-[500px] max-h-[80vh] overflow-y-auto
-            scrollbar-thin scrollbar-thumb-green-500 scrollbar-track-transparent"
-        >
-          <h2 className="text-2xl sm:text-3xl font-bold text-green-800 mb-2 sm:mb-4">{selectedIsland.name}</h2>
-          <p className="text-base sm:text-lg text-gray-700 mb-4 sm:mb-6">{selectedIsland.description}</p>
-          <div className="flex flex-col sm:flex-row gap-3 sm:gap-0 sm:justify-between">
-            <button
-              onClick={handleBackClick}
-              className="px-4 sm:px-6 py-2 sm:py-3 bg-gray-500 text-white rounded-lg sm:rounded-xl 
-                hover:bg-gray-600 transition-colors text-sm sm:text-base"
-            >
-              Kembali
-            </button>
-            <button
-              onClick={handleEnterVillage}
-              className="px-4 sm:px-6 py-2 sm:py-3 bg-green-500 text-white rounded-lg sm:rounded-xl 
-                hover:bg-green-600 transition-colors text-sm sm:text-base"
-            >
-              Masuk Desa
-            </button>
+      {/* Mobile UI Elements */}
+      {isMobile && (
+        <>
+          {/* Island Name Header */}
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="fixed top-4 left-0 right-0 z-10 flex justify-center items-center"
+          >
+            <div className="bg-white/10 backdrop-blur-lg px-6 py-3 rounded-full">
+              <h2 className="text-2xl font-bold text-white text-center">
+                {selectedIsland?.name || islands[currentIslandIndex].name}
+              </h2>
+            </div>
+          </motion.div>
+
+          {/* Island Navigation Dots */}
+          <div className="fixed top-20 left-0 right-0 z-10 flex justify-center items-center gap-2">
+            {islands.map((island, index) => (
+              <button
+                key={index}
+                onClick={() => {
+                  setCurrentIslandIndex(index);
+                  setSelectedIsland(islands[index]);
+                  setIsZooming(true);
+                }}
+                className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${
+                  currentIslandIndex === index 
+                    ? 'bg-white w-8' 
+                    : 'bg-white/50 hover:bg-white/80'
+                }`}
+                aria-label={`Go to ${island.name}`}
+              />
+            ))}
           </div>
+
+          {/* Navigation Controls */}
+          <div className="fixed bottom-8 left-0 right-0 z-10 px-6">
+            <div className="flex justify-between items-center max-w-md mx-auto">
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={handlePrevIsland}
+                className="p-4 bg-white/10 backdrop-blur-lg rounded-2xl hover:bg-white/20 transition-all
+                  shadow-lg border border-white/20"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="white">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </motion.button>
+
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={() => handleEnterVillage()}
+                className="px-8 py-4 bg-green-500/90 backdrop-blur-lg rounded-2xl
+                  hover:bg-green-500 transition-all shadow-lg border border-white/20"
+              >
+                <span className="text-white font-semibold text-lg">Masuk Desa</span>
+              </motion.button>
+
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={handleNextIsland}
+                className="p-4 bg-white/10 backdrop-blur-lg rounded-2xl hover:bg-white/20 transition-all
+                  shadow-lg border border-white/20"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="white">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </motion.button>
+            </div>
+          </div>
+
+          {/* Island Description Card */}
+          <motion.div
+            initial={{ opacity: 0, y: 100 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="fixed bottom-32 left-4 right-4 z-10"
+          >
+            <div className="bg-gradient-to-br from-white/20 to-white/5 backdrop-blur-lg rounded-3xl 
+              shadow-lg border border-white/20 max-w-md mx-auto overflow-hidden">
+              {/* Card Header */}
+              <div className="bg-white/10 px-6 py-4 border-b border-white/10 flex items-center gap-3">
+                <div className="p-2 bg-green-500/20 rounded-lg">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-500" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-white">Informasi Desa</h3>
+                  <p className="text-sm text-white/70">Klik untuk detail lebih lanjut</p>
+                </div>
+              </div>
+
+              {/* Card Content */}
+              <div className="p-6">
+                <div className="flex flex-col gap-4">
+                  {/* Description */}
+                  <div className="flex gap-3 items-start">
+                    <div className="p-2 bg-white/10 rounded-lg mt-1 flex-shrink-0">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <p className="text-white/90 leading-relaxed text-sm">
+                      {selectedIsland?.description || islands[currentIslandIndex].description}
+                    </p>
+                  </div>
+
+                  {/* Features */}
+                  <div className="grid grid-cols-2 gap-3 mt-2">
+                    <div className="bg-white/10 rounded-xl p-3 flex items-center gap-2">
+                      <div className="p-1.5 bg-blue-500/20 rounded-lg">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
+                          <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
+                        </svg>
+                      </div>
+                      <span className="text-white/90 text-sm">Komunitas Aktif</span>
+                    </div>
+                    <div className="bg-white/10 rounded-xl p-3 flex items-center gap-2">
+                      <div className="p-1.5 bg-yellow-500/20 rounded-lg">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-yellow-500" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M6.672 1.911a1 1 0 10-1.932.518l.259.966a1 1 0 001.932-.518l-.26-.966zM2.429 4.74a1 1 0 10-.517 1.932l.966.259a1 1 0 00.517-1.932l-.966-.26zm8.814-.569a1 1 0 00-1.415-1.414l-.707.707a1 1 0 101.415 1.415l.707-.708zm-7.071 7.072l.707-.707A1 1 0 003.465 9.12l-.708.707a1 1 0 001.415 1.415zm3.2-5.171a1 1 0 00-1.3 1.3l4 10a1 1 0 001.823.075l1.38-2.759 3.018 3.02a1 1 0 001.414-1.415l-3.019-3.02 2.76-1.379a1 1 0 00-.076-1.822l-10-4z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <span className="text-white/90 text-sm">Potensi Tinggi</span>
+                    </div>
+                  </div>
+
+                  {/* Visit Button */}
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => handleEnterVillage()}
+                    className="w-full mt-2 bg-gradient-to-r from-green-500 to-green-600 
+                      text-white py-3 rounded-xl font-medium shadow-lg
+                      border border-green-400/30 hover:from-green-600 hover:to-green-700
+                      transition-all duration-300 flex items-center justify-center gap-2"
+                  >
+                    <span>Kunjungi Sekarang</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  </motion.button>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </>
+      )}
+
+      {/* Desktop Info Panel */}
+      {!isMobile && showInfo && selectedIsland && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.95 }}
+          className="fixed inset-0 z-10 flex items-center justify-center p-8 bg-black/20"
+        >
+          <motion.div 
+            className="w-[900px] max-w-[90vw] max-h-[80vh] overflow-auto
+              bg-gradient-to-br from-white/95 to-white/90 backdrop-blur-xl rounded-3xl 
+              shadow-2xl border border-white/50"
+            initial={{ y: 20 }}
+            animate={{ y: 0 }}
+            transition={{ delay: 0.1 }}
+          >
+            {/* Card Header */}
+            <div className="bg-gradient-to-r from-green-500/20 to-green-600/10 px-8 py-5 border-b border-green-500/20 
+              sticky top-0 backdrop-blur-xl z-20 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-green-500/20 rounded-xl">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-700" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 className="text-3xl font-bold text-green-800">{selectedIsland.name}</h2>
+                  <p className="text-green-600/80 mt-1">Informasi dan Detail Desa</p>
+                </div>
+              </div>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={handleBackClick}
+                className="p-2 hover:bg-white/50 rounded-lg transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </motion.button>
+            </div>
+
+            {/* Card Content */}
+            <div className="p-8">
+              <div className="grid grid-cols-12 gap-8">
+                {/* Left Column - Description */}
+                <div className="col-span-7">
+                  <div className="flex gap-4 items-start mb-6">
+                    <div className="p-2 bg-blue-500/10 rounded-lg mt-1">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-600" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-semibold text-gray-800 mb-2">Tentang Desa</h3>
+                      <p className="text-gray-600 leading-relaxed">{selectedIsland.description}</p>
+                    </div>
+                  </div>
+
+                  {/* Features Grid */}
+                  <div className="grid grid-cols-2 gap-4 mt-6">
+                    <div className="bg-yellow-50 rounded-2xl p-4 border border-yellow-100">
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="p-2 bg-yellow-500/20 rounded-lg">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-yellow-600" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
+                          </svg>
+                        </div>
+                        <h4 className="font-semibold text-gray-800">Komunitas Aktif</h4>
+                      </div>
+                      <p className="text-sm text-gray-600">Masyarakat yang aktif berpartisipasi dalam kegiatan desa</p>
+                    </div>
+                    <div className="bg-blue-50 rounded-2xl p-4 border border-blue-100">
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="p-2 bg-blue-500/20 rounded-lg">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-600" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M6.672 1.911a1 1 0 10-1.932.518l.259.966a1 1 0 001.932-.518l-.26-.966zM2.429 4.74a1 1 0 10-.517 1.932l.966.259a1 1 0 00.517-1.932l-.966-.26zm8.814-.569a1 1 0 00-1.415-1.414l-.707.707a1 1 0 101.415 1.415l.707-.708zm-7.071 7.072l.707-.707A1 1 0 003.465 9.12l-.708.707a1 1 0 001.415 1.415zm3.2-5.171a1 1 0 00-1.3 1.3l4 10a1 1 0 001.823.075l1.38-2.759 3.018 3.02a1 1 0 001.414-1.415l-3.019-3.02 2.76-1.379a1 1 0 00-.076-1.822l-10-4z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                        <h4 className="font-semibold text-gray-800">Potensi Tinggi</h4>
+                      </div>
+                      <p className="text-sm text-gray-600">Memiliki potensi pengembangan ekonomi yang menjanjikan</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Column - Stats & Action */}
+                <div className="col-span-5 flex flex-col justify-between">
+                  {/* Stats */}
+                  <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl p-6 border border-green-100">
+                    <h4 className="font-semibold text-gray-800 mb-4">Statistik Desa</h4>
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">Penduduk</span>
+                        <span className="font-semibold text-gray-800">2,500+</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">UMKM Aktif</span>
+                        <span className="font-semibold text-gray-800">50+</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">Produk Unggulan</span>
+                        <span className="font-semibold text-gray-800">25+</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Action Button */}
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={handleEnterVillage}
+                    className="w-full mt-4 bg-gradient-to-r from-green-500 to-green-600 
+                      text-white py-4 rounded-xl font-semibold text-lg shadow-lg
+                      hover:from-green-600 hover:to-green-700 transition-all duration-300
+                      border border-green-400/30 flex items-center justify-center gap-2"
+                  >
+                    <span>Kunjungi Desa</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  </motion.button>
+                </div>
+              </div>
+            </div>
+          </motion.div>
         </motion.div>
       )}
 
       <Canvas
         camera={{
-          position: [0, 300, 1000],
-          fov: window.innerWidth < 768 ? 60 : 45,
+          position: isMobile ? [0, 50, 300] : [0, 300, 1000],
+          fov: isMobile ? 75 : 45,
           near: 0.1,
           far: 2000
         }}
@@ -423,12 +721,12 @@ const IslandScene = () => {
           <Environment preset="sunset" />
           <OrbitControls
             ref={controlsRef}
-            enablePan={false}
-            minDistance={window.innerWidth < 768 ? 150 : 200}
-            maxDistance={window.innerWidth < 768 ? 600 : 800}
+            enablePan={!isMobile}
+            minDistance={isMobile ? 100 : 200}
+            maxDistance={isMobile ? 400 : 800}
             minPolarAngle={Math.PI / 4}
             maxPolarAngle={Math.PI / 2.5}
-            enabled={!isEntering}
+            enabled={!isEntering && !isMobile}
             enableDamping={true}
             dampingFactor={0.05}
             rotateSpeed={0.5}
