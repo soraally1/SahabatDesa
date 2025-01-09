@@ -2,8 +2,10 @@ import { motion } from 'framer-motion';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { useGLTF, OrbitControls, MeshDistortMaterial, Sparkles, Float } from '@react-three/drei';
 import { Suspense, useRef, useEffect, useState } from 'react';
+import PropTypes from 'prop-types';
 import * as THREE from 'three';
 import { Howl } from 'howler';
+import { useNavigate } from 'react-router-dom';
 
 /* eslint-disable react/no-unknown-property */
 
@@ -22,46 +24,21 @@ const soundEffects = {
 };
 
 // Loading UI Component (outside Canvas)
-function LoadingUI() {
-  const [tips] = useState([
-    "Jelajahi 5 pulau unik dengan karakteristik berbeda",
-    "Kunjungi Pasar Desa untuk melihat produk lokal",
-    "Temukan Desa Sejahtera dengan fokus pertanian",
-    "Kunjungi Desa Kreatif untuk ekonomi digital",
-    "Nikmati keindahan di Desa Wisata",
-    "Lihat pembangunan di Desa Pembangun",
-    "Klik pada pulau untuk melihat informasi detail",
-    "Gunakan tombol 'Masuk Desa' untuk mengeksplorasi"
-  ]);
-  
+function LoadingUI({ progress = 0 }) {
   const [currentTip, setCurrentTip] = useState(0);
-  const [progress, setProgress] = useState(0);
+  const tips = [
+    "Memuat model 3D pulau...",
+    "Menyiapkan perjalanan virtual...",
+    "Mengumpulkan informasi desa...",
+    "Hampir selesai..."
+  ];
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setCurrentTip(prev => (prev + 1) % tips.length);
-    }, 5000);
+      setCurrentTip((prev) => (prev + 1) % tips.length);
+    }, 3000);
+
     return () => clearInterval(interval);
-  }, [tips.length]);
-
-  useEffect(() => {
-    const duration = 5000; // 5 seconds
-    const interval = 50; // Update every 50ms for smooth animation
-    const steps = duration / interval;
-    const increment = 100 / steps;
-
-    const timer = setInterval(() => {
-      setProgress(prev => {
-        const next = prev + increment;
-        if (next >= 100) {
-          clearInterval(timer);
-          return 100;
-        }
-        return next;
-      });
-    }, interval);
-
-    return () => clearInterval(timer);
   }, []);
 
   return (
@@ -173,37 +150,47 @@ function LoadingUI() {
             ))}
           </motion.div>
         </motion.div>
-          <motion.p
-            key={currentTip}
-            initial={{ opacity: 0, y: 20, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -20, scale: 0.95 }}
-            transition={{ duration: 0.8, ease: "easeOut" }}
-            className="text-white text-lg font-semibold tracking-wide drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]"
+        <motion.p
+          key={currentTip}
+          initial={{ opacity: 0, y: 20, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: -20, scale: 0.95 }}
+          transition={{ duration: 0.8, ease: "easeOut" }}
+          className="text-white text-lg font-semibold tracking-wide drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]"
+        >
+          <motion.span 
+            className="inline-block mr-2"
+            animate={{ 
+              rotate: [0, 15, -15, 0],
+              scale: [1, 1.2, 1.2, 1]
+            }}
+            transition={{
+              duration: 1,
+              repeat: Infinity,
+              repeatDelay: 4
+            }}
           >
-            <motion.span 
-              className="inline-block mr-2"
-              animate={{ 
-                rotate: [0, 15, -15, 0],
-                scale: [1, 1.2, 1.2, 1]
-              }}
-              transition={{
-                duration: 1,
-                repeat: Infinity,
-                repeatDelay: 4
-              }}
-            >
-              💡
-            </motion.span>
-            {tips[currentTip]}
-          </motion.p>
+            💡
+          </motion.span>
+          {tips[currentTip]}
+        </motion.p>
       </div>
     </div>
   );
 }
 
-// 3D Scene Components
-function Scene() {
+LoadingUI.propTypes = {
+  progress: PropTypes.number
+};
+
+// Scene Components
+function Scene({ onLoadComplete }) {
+  const [modelLoaded, setModelLoaded] = useState(false);
+  const { scene } = useGLTF('/models/Boat.glb', undefined, undefined, () => {
+    setModelLoaded(true);
+    if (onLoadComplete) onLoadComplete();
+  });
+
   useEffect(() => {
     // Play sounds
     soundEffects.waves.play();
@@ -228,13 +215,15 @@ function Scene() {
         shadow-mapSize-width={2048}
         shadow-mapSize-height={2048}
       />
-      <Float 
-        speed={2}
-        rotationIntensity={0.5}
-        floatIntensity={0.5}
-      >
-        <Boat />
-      </Float>
+      {modelLoaded && (
+        <Float 
+          speed={2}
+          rotationIntensity={0.5}
+          floatIntensity={0.5}
+        >
+          <Boat scene={scene} />
+        </Float>
+      )}
       <Ocean />
       <WaterParticles />
       <Sparkles 
@@ -257,6 +246,10 @@ function Scene() {
     </>
   );
 }
+
+Scene.propTypes = {
+  onLoadComplete: PropTypes.func
+};
 
 function Ocean() {
   const oceanRef = useRef();
@@ -311,8 +304,7 @@ function Ocean() {
   );
 }
 
-function Boat() {
-  const { scene } = useGLTF('/models/Boat.glb');
+function Boat({ scene }) {
   const boatRef = useRef();
 
   useFrame((state) => {
@@ -333,6 +325,10 @@ function Boat() {
     />
   );
 }
+
+Boat.propTypes = {
+  scene: PropTypes.object.isRequired
+};
 
 function WaterParticles() {
   const particlesRef = useRef();
@@ -388,6 +384,29 @@ function WaterParticles() {
 
 // Main Component
 const BoatLoadingScreen = () => {
+  const [progress, setProgress] = useState(0);
+  const navigate = useNavigate();
+
+  const handleLoadComplete = () => {
+    setProgress(100);
+    // Navigate after a short delay to show 100% completion
+    setTimeout(() => {
+      navigate('/islands');
+    }, 500);
+  };
+
+  useEffect(() => {
+    // Simulate progress until model loads
+    const interval = setInterval(() => {
+      setProgress(prev => {
+        if (prev < 90) return prev + 10;
+        return prev;
+      });
+    }, 500);
+
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <motion.div 
       className="fixed inset-0 z-50 bg-gradient-to-b from-sky-400 via-blue-500 to-blue-600
@@ -400,7 +419,7 @@ const BoatLoadingScreen = () => {
         ease: "easeInOut"
       }}
     >
-      <LoadingUI />
+      <LoadingUI progress={progress} />
       <Canvas 
         className="w-full h-full"
         camera={{ position: [0, 2, 5], fov: 45 }}
@@ -413,7 +432,7 @@ const BoatLoadingScreen = () => {
         }}
       >
         <Suspense fallback={null}>
-          <Scene />
+          <Scene onLoadComplete={handleLoadComplete} />
         </Suspense>
       </Canvas>
     </motion.div>

@@ -129,7 +129,7 @@ const ProductCard = ({ icon: Icon, title, description, category, image, price, s
           whileTap={{ scale: 0.98 }}
           onClick={() => {
             playSoundEffect('click');
-            window.open(`https://wa.me/6285123456789?text=Halo, saya tertarik dengan produk ${title}. Apakah masih tersedia?`, '_blank');
+            window.open(`https://wa.me/628813873761?text=Halo, saya tertarik dengan produk ${title}. Apakah masih tersedia?`, '_blank');
           }}
           className="flex items-center justify-center gap-2 bg-gradient-to-r from-green-600 to-green-500 
             text-white py-2.5 px-4 rounded-xl text-sm font-semibold

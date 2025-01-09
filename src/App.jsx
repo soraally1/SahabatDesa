@@ -1,16 +1,20 @@
-import { Suspense } from 'react';
+import { Suspense, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Home from './components/Home';
 import Navbar from './components/Navbar';
 import IslandScene from './components/IslandScene';
 import BoatLoadingScreen from './components/BoatLoadingScreen';
+import Loading from './components/Loading';
+import CrowdfundingPage from './pages/Crowdfunding';
+import MarketplacePage from './pages/Marketplace';
+import EducationPage from './pages/Education';
+import CollaborationPage from './pages/Collaboration';
 import './App.css';
 import Desa1 from './components/Desa1/Desa';
 import Desa2 from './components/Desa2/Desa';
 import Desa3 from './components/Desa3/Desa';
 import Desa4 from './components/Desa4/Desa';
 import Desa5 from './components/Desa5/Desa';
-
 
 function AppContent() {
   return (
@@ -25,6 +29,42 @@ function AppContent() {
           <>
             <Navbar />
             <IslandScene />
+          </>
+        } 
+      />
+      <Route 
+        path="/crowdfunding" 
+        element={
+          <>
+            <Navbar />
+            <CrowdfundingPage />
+          </>
+        } 
+      />
+      <Route 
+        path="/marketplace" 
+        element={
+          <>
+            <Navbar />
+            <MarketplacePage />
+          </>
+        } 
+      />
+      <Route 
+        path="/education" 
+        element={
+          <>
+            <Navbar />
+            <EducationPage />
+          </>
+        } 
+      />
+      <Route 
+        path="/collaboration" 
+        element={
+          <>
+            <Navbar />
+            <CollaborationPage />
           </>
         } 
       />
@@ -79,15 +119,21 @@ function AppContent() {
 }
 
 function App() {
+  const [isLoading, setIsLoading] = useState(true);
+
   return (
     <BrowserRouter>
-      <Suspense fallback={
-        <div className="fixed inset-0 z-50">
-          <BoatLoadingScreen />
-        </div>
-      }>
-        <AppContent />
-      </Suspense>
+      {isLoading ? (
+        <Loading onComplete={() => setIsLoading(false)} />
+      ) : (
+        <Suspense fallback={
+          <div className="fixed inset-0 z-50">
+            <BoatLoadingScreen />
+          </div>
+        }>
+          <AppContent />
+        </Suspense>
+      )}
     </BrowserRouter>
   );
 }

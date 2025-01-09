@@ -7,7 +7,6 @@ import {
   Stars,
   Float,
   Html,
-  useProgress,
   Sparkles
 } from '@react-three/drei';
 import * as THREE from 'three';
@@ -23,6 +22,7 @@ import { IoIosArrowBack, IoIosArrowForward, IoIosArrowDown } from 'react-icons/i
 import { useNavigate } from 'react-router-dom';
 import BoatLoadingScreen from './BoatLoadingScreen';
 import Village from '../../public/models/Village.glb'
+import Loading from './Loading';
 
 // Add ESLint exceptions for Three.js props
 /* eslint-disable react/no-unknown-property */
@@ -187,129 +187,6 @@ LanguageToggle.propTypes = {
   currentLang: PropTypes.string.isRequired,
   onToggle: PropTypes.func.isRequired
 };
-
-function LoadingScreen() {
-  const { progress } = useProgress();
-  const [dots, setDots] = useState('');
-  const [visibleLetters, setVisibleLetters] = useState(0);
-  const [visibleDesaLetters, setVisibleDesaLetters] = useState(0);
-  const totalLetters = 'SAHABAT'.length;
-  const totalDesaLetters = 'DESA'.length;
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setDots(prev => prev.length >= 3 ? '' : prev + '.');
-    }, 500);
-    return () => clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
-    const letterInterval = setInterval(() => {
-      setVisibleLetters(prev => prev < totalLetters ? prev + 1 : prev);
-    }, 200);
-
-    const desaLetterInterval = setTimeout(() => {
-      const interval = setInterval(() => {
-        setVisibleDesaLetters(prev => prev < totalDesaLetters ? prev + 1 : prev);
-      }, 200);
-      return () => clearInterval(interval);
-    }, totalLetters * 200 + 300);
-
-    return () => {
-      clearInterval(letterInterval);
-      clearTimeout(desaLetterInterval);
-    };
-  }, [totalLetters, totalDesaLetters]);
-
-  const renderLetter = (letter, index, isVisible, isDesaText = false) => {
-    if (!isVisible) return <span key={index} className="opacity-0">{letter}</span>;
-    
-    return (
-      <span 
-        key={index}
-        className={`inline-block transform-gpu animate-letter-bounce-in hover:text-${isDesaText ? 'white' : 'yellow-300'} transition-colors`}
-        style={{ 
-          animationDelay: `${index * 0.1}s`,
-          animationFillMode: 'both',
-          textShadow: '0 4px 8px rgba(0,0,0,0.2)',
-        }}
-      >
-        {letter}
-      </span>
-    );
-  };
-
-  return (
-    <div className="fixed inset-0 bg-gradient-to-br from-green-600 via-green-500 to-green-700 z-50 flex flex-col items-center justify-center overflow-hidden">
-      {/* Background Animation */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMiIgZmlsbD0id2hpdGUiIGZpbGwtb3BhY2l0eT0iMC4xIi8+PC9zdmc+')] opacity-30 animate-floatBackground"></div>
-      </div>
-
-      <div className="text-center relative">
-        {/* Spinning Circle */}
-        <div className="absolute -top-24 left-1/2 transform -translate-x-1/2">
-          <div className="w-24 h-24 rounded-full bg-gradient-to-r from-yellow-300 to-yellow-500 animate-spin-slow">
-            <div className="w-20 h-20 rounded-full bg-green-600 absolute top-2 left-2"></div>
-          </div>
-          <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-4xl animate-bounce-slow">🏠</span>
-          </div>
-        </div>
-
-        {/* Main Content */}
-        <div className="mb-12 space-y-6 relative">
-          {/* Sahabat Text */}
-          <div className="text-7xl font-bold text-white tracking-wider relative group perspective">
-            {'SAHABAT'.split('').map((letter, i) => renderLetter(letter, i, i < visibleLetters))}
-            {visibleLetters === totalLetters && (
-              <span className="absolute -right-12 top-0 text-5xl animate-bounce-scale">✨</span>
-            )}
-          </div>
-
-          {/* Desa Text */}
-          <div className="text-7xl font-bold text-yellow-300 tracking-wider relative group perspective">
-            {'DESA'.split('').map((letter, i) => renderLetter(letter, i, i < visibleDesaLetters, true))}
-          </div>
-        </div>
-
-        {/* Loading Text and Progress */}
-        <div className="relative">
-          <div className="text-2xl text-white/90 font-medium mb-4 tracking-wide">
-            <span className="animate-bounce-custom inline-flex items-center gap-2">
-              <span className="text-xl animate-bounce-rotate">🚀</span>
-              Memuat{dots}
-            </span>
-          </div>
-          
-          {/* Progress Bar */}
-          <div className="relative">
-            <div className="w-64 h-3 bg-black/20 rounded-full mx-auto overflow-hidden backdrop-blur-sm">
-              <div 
-                className="h-full bg-gradient-to-r from-yellow-300 to-yellow-500 rounded-full transition-all duration-300 relative animate-pulse-slow"
-                style={{ width: `${progress}%` }}
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/30 to-white/0 animate-shine"></div>
-              </div>
-            </div>
-            <div className="mt-2 text-white/80 text-sm font-medium tracking-wider">
-              {Math.round(progress)}%
-            </div>
-          </div>
-
-          {/* Loading Message */}
-          <div className="absolute -bottom-12 left-1/2 transform -translate-x-1/2 whitespace-nowrap">
-            <span className="text-white/60 text-sm animate-bounce-scale inline-flex items-center gap-2">
-              <span className="text-lg animate-bounce-rotate">✨</span>
-              Menyiapkan pengalaman terbaik untuk Anda...
-              <span className="text-lg animate-bounce-rotate">✨</span>
-            </span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function Model() {
   const { scene } = useGLTF(Village);
@@ -503,7 +380,7 @@ function Home() {
   const t = translations[currentLang];
 
   useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 3000);
+    const timer = setTimeout(() => setLoading(false), 1500);
     return () => clearTimeout(timer);
   }, []);
 
@@ -548,7 +425,7 @@ function Home() {
 
   return (
     <div className={`relative w-full h-screen ${isDarkTheme ? 'dark' : ''}`}>
-      {loading && <LoadingScreen />}
+      {loading && <Loading />}
 
       <AnimatePresence>
         {showBoatTransition && <BoatLoadingScreen />}

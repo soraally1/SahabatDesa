@@ -2,7 +2,7 @@ import { FaStore, FaGraduationCap, FaHandshake, FaWifi, FaLeaf, FaUsers,
   FaChartLine, FaLightbulb, FaShoppingBasket, FaFish, FaTshirt, FaBoxOpen, FaCarrot } from 'react-icons/fa';
 import { IoEarth } from 'react-icons/io5';
 import { GiRiceCooker, GiHoneyJar, GiCoconuts } from 'react-icons/gi';
-import menara from '../../assets/img/menara.jpeg';
+import menara from '../../assets/img/Menara.jpeg';
 import pelatihan from '../../assets/img/pelatihan.jpeg';
 import Bambu from '../../assets/Desa1/bambu.jpg';
 import Ikan from '../../assets/Desa1/ikan.jpg';

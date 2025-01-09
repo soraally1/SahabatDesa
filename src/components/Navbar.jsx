@@ -73,7 +73,7 @@ const Navbar = () => {
 
             {/* Desktop Logo and Brand - Centered on Mobile */}
             <div className="flex-1 flex justify-center lg:justify-start">
-              <Link to="/" className="hidden lg:flex items-center">
+              <Link to="/island" className="hidden lg:flex items-center">
                 <motion.div
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
