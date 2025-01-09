@@ -4,6 +4,18 @@ import { IoEarth } from 'react-icons/io5';
 import { GiRiceCooker, GiHoneyJar, GiCoconuts } from 'react-icons/gi';
 import menara from '../../assets/img/menara.jpeg';
 import pelatihan from '../../assets/img/pelatihan.jpeg';
+import Bambu from '../../assets/Desa1/bambu.jpg';
+import Ikan from '../../assets/Desa1/ikan.jpg';
+import Beras from '../../assets/Desa1/beras.jpg';
+import Kelapa from '../../assets/Desa1/kelapa.jpg';
+import Madu from '../../assets/Desa1/madu.jpg';
+import Sagu from '../../assets/Desa1/sagu.jpg';
+import Sayur from '../../assets/Desa1/sayur.jpg';
+import Tenun from '../../assets/Desa1/tenun.jpg';
+import Digital from '../../assets/Desa1/digital.jpeg';
+import Ecommerce from '../../assets/Desa1/ecomer.jpeg';
+import energy from '../../assets/Desa1/energy.jpeg';
+import farming from '../../assets/Desa1/farming.jpeg';
 
 export const statistics = [
   { value: "2,500+", label: "Penduduk", icon: FaUsers },
@@ -262,7 +274,7 @@ export const crowdfundingProjects = [
     raised: 350000000,
     daysLeft: 15,
     supporters: 234,
-    image: "https://www.pertanian.go.id/img/pages/smart_farming.jpg"
+    image: farming
   },
   {
     title: "Digital Skills Training Hub",
@@ -271,7 +283,7 @@ export const crowdfundingProjects = [
     raised: 180000000,
     daysLeft: 20,
     supporters: 156,
-    image: "https://cdn1.katadata.co.id/media/images/thumb/2021/09/14/Pelatihan_digital_marketing-2021_09_14-13_47_50_4e87c3783c6bfaf089d2e8fa2c79f6e2_960x640_thumb.jpg"
+    image: Digital
   },
   {
     title: "Renewable Energy Project",
@@ -280,7 +292,7 @@ export const crowdfundingProjects = [
     raised: 450000000,
     daysLeft: 25,
     supporters: 312,
-    image: "https://www.esdm.go.id/assets/media/content/content-pembangkit-listrik-tenaga-surya-plts.jpeg"
+    image: energy
   },
   {
     title: "E-Commerce Development",
@@ -289,7 +301,7 @@ export const crowdfundingProjects = [
     raised: 225000000,
     daysLeft: 18,
     supporters: 189,
-    image: "https://cdn0-production-images-kly.akamaized.net/7lKdM4-8_kmSyR2HX4kBYq4oFak=/1200x675/smart/filters:quality(75):strip_icc():format(jpeg)/kly-media-production/medias/3381837/original/093606200_1613808956-20210220-Pelaku-UMKM-Belajar-Jualan-Online-ANGGA-5.jpg"
+    image: Ecommerce
   }
 ];
 
@@ -299,7 +311,7 @@ export const featuredProducts = [
     title: "Beras Organik Premium",
     description: "Beras organik premium hasil panen petani lokal, ditanam dengan metode SRI (System of Rice Intensification). Bebas pestisida, tekstur pulen, dan aroma alami yang khas. Dikemas dalam kemasan vacuum untuk menjaga kualitas.",
     category: "Pertanian",
-    image: "https://asset.kompas.com/crops/MYPkjB5ZZA9PNApplqoO0ULqZbY=/0x0:1000x667/750x500/data/photo/2020/02/17/5e4a5324def51.jpg",
+    image: Beras,
     price: 18000,
     stock: 100,
     unit: "kg",
@@ -311,7 +323,7 @@ export const featuredProducts = [
     title: "Produk Kelapa",
     description: "Minyak kelapa murni (VCO) diproduksi dengan metode cold-pressed tradisional untuk menjaga nutrisi. Cocok untuk memasak, perawatan kulit, dan rambut. Tersedia juga kelapa segar pilihan berkualitas tinggi.",
     category: "Olahan",
-    image: "https://asset.kompas.com/crops/vZtJ0n_6YSuUGiRF1MbNd3IHQtY=/0x0:1000x667/750x500/data/photo/2020/02/17/5e4a1c4a1e807.jpg",
+    image: Kelapa,
     price: 15000,
     stock: 50,
     unit: "butir",
@@ -323,7 +335,7 @@ export const featuredProducts = [
     title: "Ikan Air Tawar",
     description: "Ikan nila dan lele segar dari kolam budidaya ramah lingkungan. Dipanen langsung saat dipesan untuk menjamin kesegaran maksimal. Bebas bahan kimia dan antibiotik, cocok untuk hidangan sehat keluarga.",
     category: "Perikanan",
-    image: "https://cdn1.katadata.co.id/media/images/thumb/2021/07/21/Budidaya_ikan_nila-2021_07_21-10_07_45_a7c1d7d8f36b8f902c0c0b1065e2a1c2_960x640_thumb.jpg",
+    image: Ikan,
     price: 35000,
     stock: 25,
     unit: "kg",
@@ -335,7 +347,7 @@ export const featuredProducts = [
     title: "Anyaman Bambu",
     description: "Kerajinan anyaman bambu premium hasil karya pengrajin terampil desa. Setiap produk dibuat dengan teliti menggunakan teknik anyaman tradisional turun-temurun. Awet, tahan lama, dan ramah lingkungan.",
     category: "Kerajinan",
-    image: "https://asset.kompas.com/crops/0vH7vARCWXFBP9z_-u7o6IrHVw8=/0x0:739x493/750x500/data/photo/2021/07/22/60f91f42e553d.jpg",
+    image: Bambu,
     price: 75000,
     stock: 15,
     unit: "pcs",
@@ -347,7 +359,7 @@ export const featuredProducts = [
     title: "Tenun Tradisional",
     description: "Kain tenun eksklusif dengan motif khas Pagaitan, ditenun tangan menggunakan benang berkualitas tinggi. Setiap motif menceritakan kisah budaya lokal. Cocok untuk pakaian adat dan koleksi pribadi.",
     category: "Kerajinan",
-    image: "https://asset.kompas.com/crops/thXLgZDGLRYOZHzqKrJSH6vQQlg=/0x0:780x390/780x390/data/photo/2015/06/24/1618527IMG-0207780x390.jpg",
+    image: Tenun,
     price: 250000,
     stock: 8,
     unit: "pcs",
@@ -359,7 +371,7 @@ export const featuredProducts = [
     title: "Olahan Sagu",
     description: "Makanan tradisional berbahan sagu pilihan, diolah dengan resep warisan leluhur. Tersedia varian sinonggi dan kapurung dengan cita rasa otentik. Dikemas higienis dan tahan lama, cocok untuk oleh-oleh.",
     category: "Kuliner",
-    image: "https://asset.kompas.com/crops/EPdJFqA_5xS_-P1A1n_W8Qj4iKc=/0x0:739x493/750x500/data/photo/2021/09/21/6149855c6c2e7.jpg",
+    image: Sagu,
     price: 25000,
     stock: 30,
     unit: "pcs",
@@ -371,7 +383,7 @@ export const featuredProducts = [
     title: "Madu Hutan",
     description: "Madu murni dari lebah liar hutan Pagaitan, dipanen secara tradisional dan berkelanjutan. Kaya antioksidan dan enzim alami. Dikemas dalam botol kaca premium untuk menjaga keaslian rasa dan khasiat.",
     category: "Natural",
-    image: "https://asset.kompas.com/crops/wIbEjqqqC4wy8lZFCmzAq_vMHSY=/0x0:1000x667/750x500/data/photo/2020/11/22/5fba0b0f94d9b.jpg",
+    image: Madu,
     price: 85000,
     stock: 20,
     unit: "botol",
@@ -383,7 +395,7 @@ export const featuredProducts = [
     title: "Sayur & Buah Organik",
     description: "Hasil panen segar dari kebun organik bersertifikat. Ditanam tanpa pestisida kimia, dipanen pagi hari untuk menjaga kesegaran. Tersedia sayuran hijau, umbi-umbian, dan buah musiman berkualitas premium.",
     category: "Pertanian",
-    image: "https://asset.kompas.com/crops/LJGjDtBLjEeKS1m4Z0S8YRo-Zb8=/0x0:1000x667/750x500/data/photo/2020/04/10/5e8ff58d2a7d2.jpg",
+    image: Sayur,
     price: 12000,
     stock: 40,
     unit: "kg",

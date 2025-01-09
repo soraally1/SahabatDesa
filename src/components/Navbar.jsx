@@ -14,7 +14,7 @@ import {
   MdAttachMoney,
   MdShoppingCart
 } from 'react-icons/md';
-import sahabatDesa from '../assets/sahabatDesa.png';
+import sahabatDesa from '../assets/SahabatDesa.svg';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);

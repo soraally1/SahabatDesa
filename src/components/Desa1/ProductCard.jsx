@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import { FaWhatsapp, FaInfoCircle, FaStar, FaShoppingCart } from 'react-icons/fa';
 import { playSoundEffect } from './utils/soundEffects';
 
+
 const ProductCard = ({ icon: Icon, title, description, category, image, price, stock, unit, rating, soldCount }) => (
   <motion.div
     whileHover={{ y: -5 }}

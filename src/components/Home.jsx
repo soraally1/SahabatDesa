@@ -22,6 +22,7 @@ import { RiRocketLine, RiCommunityLine, RiTeamLine } from 'react-icons/ri';
 import { IoIosArrowBack, IoIosArrowForward, IoIosArrowDown } from 'react-icons/io';
 import { useNavigate } from 'react-router-dom';
 import BoatLoadingScreen from './BoatLoadingScreen';
+import Village from '../../public/models/Village.glb'
 
 // Add ESLint exceptions for Three.js props
 /* eslint-disable react/no-unknown-property */
@@ -311,7 +312,7 @@ function LoadingScreen() {
 }
 
 function Model() {
-  const { scene } = useGLTF('/Village.glb');
+  const { scene } = useGLTF(Village);
   const [hovered, setHovered] = useState(false);
   const [clicked, setClicked] = useState(false);
   const [rotateSpeed, setRotateSpeed] = useState(0.01);
@@ -542,6 +543,8 @@ function Home() {
       'info'
     );
   };
+
+  useGLTF.preload(Village);
 
   return (
     <div className={`relative w-full h-screen ${isDarkTheme ? 'dark' : ''}`}>

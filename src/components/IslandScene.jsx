@@ -1,60 +1,97 @@
-import { Suspense, useCallback, useRef, useState, useEffect } from 'react';
+import React, { Suspense, useCallback, useRef, useState, useEffect, useMemo, useLayoutEffect } from 'react';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
-import { useGLTF, OrbitControls, Environment, Float, Text } from '@react-three/drei';
+import { useGLTF, OrbitControls, Environment, Float, Text, AdaptiveDpr, AdaptiveEvents, BakeShadows } from '@react-three/drei';
 import * as THREE from 'three';
 import PropTypes from 'prop-types';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import Sea from './sea';
+import Desa1 from '../../public/models/Desa1.glb';
+import Desa2 from '../../public/models/Desa2.glb';
+import Desa3 from '../../public/models/Desa3.glb';
+import Desa4 from '../../public/models/Desa4.glb';
+import Marketplace from '../../public/models/Marketplace.glb';  
 
 /* eslint-disable react/no-unknown-property */
 
+// Add ResizeObserver hook
+const useResizeObserver = () => {
+  const [size, setSize] = useState({ width: window.innerWidth, height: window.innerHeight });
+  
+  useLayoutEffect(() => {
+    const observer = new ResizeObserver((entries) => {
+      const { width, height } = entries[0].contentRect;
+      setSize({ width, height });
+    });
+    
+    observer.observe(document.body);
+    return () => observer.disconnect();
+  }, []);
+  
+  return size;
+};
+
 // Island component with hover text
-const Island = ({ position, rotation, scale, modelPath, onClick, name }) => {
+const Island = React.memo(({ position, rotation, scale, modelPath, onClick, name }) => {
   const { scene } = useGLTF(modelPath);
   const [hovered, setHovered] = useState(false);
+  const { width } = useResizeObserver();
+  const isMobile = width < 768;
   
+  const clonedScene = useMemo(() => scene.clone(), [scene]);
+  
+  const handlePointerOver = useCallback((e) => {
+    e.stopPropagation();
+    document.body.style.cursor = 'pointer';
+    setHovered(true);
+  }, []);
+
+  const handlePointerOut = useCallback(() => {
+    document.body.style.cursor = 'default';
+    setHovered(false);
+  }, []);
+
   const handleClick = useCallback((event) => {
     event.stopPropagation();
     onClick();
   }, [onClick]);
 
+  const textConfig = useMemo(() => ({
+    fontSize: isMobile ? 20 : 30,
+    maxWidth: isMobile ? 150 : 200,
+    color: "white",
+    anchorX: "center",
+    anchorY: "middle",
+    font: "/fonts/JosefinSans-VariableFont_wght.ttf",
+    letterSpacing: 0.1,
+    fontWeight: 700
+  }), [isMobile]);
+
+  const floatPosition = useMemo(() => [
+    position[0],
+    position[1] + (isMobile ? 50 : 100),
+    position[2]
+  ], [position, isMobile]);
+
   return (
     <group>
       <primitive
-        object={scene.clone()}
+        object={clonedScene}
         position={position}
         rotation={rotation}
         scale={scale}
         onClick={handleClick}
-        onPointerOver={(e) => {
-          e.stopPropagation();
-          document.body.style.cursor = 'pointer';
-          setHovered(true);
-        }}
-        onPointerOut={() => {
-          document.body.style.cursor = 'default';
-          setHovered(false);
-        }}
+        onPointerOver={handlePointerOver}
+        onPointerOut={handlePointerOut}
       />
       {hovered && (
         <Float
           speed={2}
           rotationIntensity={0.2}
           floatIntensity={0.8}
-          position={[position[0], position[1] + (window.innerWidth < 768 ? 50 : 100), position[2]]}
+          position={floatPosition}
         >
-          <Text
-            fontSize={window.innerWidth < 768 ? 20 : 30}
-            color="white"
-            anchorX="center"
-            anchorY="middle"
-            font="/fonts/JosefinSans-VariableFont_wght.ttf"
-            maxWidth={window.innerWidth < 768 ? 150 : 200}
-            textAlign="center"
-            letterSpacing={0.1}
-            fontWeight={700}
-          >
+          <Text {...textConfig}>
             {name}
             <meshBasicMaterial 
               attach="material" 
@@ -64,7 +101,7 @@ const Island = ({ position, rotation, scale, modelPath, onClick, name }) => {
           </Text>
           <pointLight
             intensity={2}
-            distance={window.innerWidth < 768 ? 30 : 50}
+            distance={isMobile ? 30 : 50}
             color="white"
             position={[0, 0, 20]}
           />
@@ -72,7 +109,7 @@ const Island = ({ position, rotation, scale, modelPath, onClick, name }) => {
       )}
     </group>
   );
-};
+});
 
 Island.propTypes = {
   position: PropTypes.arrayOf(PropTypes.number).isRequired,
@@ -82,6 +119,8 @@ Island.propTypes = {
   onClick: PropTypes.func.isRequired,
   name: PropTypes.string.isRequired,
 };
+
+Island.displayName = 'Island';
 
 // Camera animation component
 const CameraController = ({ target, isZooming, onZoomComplete }) => {
@@ -95,14 +134,13 @@ const CameraController = ({ target, isZooming, onZoomComplete }) => {
         // Calculate front position of the island
         // Move camera to be in front of the island (negative z relative to island position)
         targetPosition.current = new THREE.Vector3(
-          target.x,                    // Same x as island
-          target.y + 60,              // Slightly above island
-          target.z + 150              // In front of island
+          target.x,
+          target.y + 80,
+          target.z + 200
         );
       }
 
-      // Smoothly move camera to target position with easing
-      camera.position.lerp(targetPosition.current, 0.03);  // Slower lerp for smoother motion
+      camera.position.lerp(targetPosition.current, 0.025);
       
       // Make camera look at the island
       const lookAtPosition = new THREE.Vector3(target.x, target.y, target.z);
@@ -114,10 +152,8 @@ const CameraController = ({ target, isZooming, onZoomComplete }) => {
       }
     } else {
       targetPosition.current = null;
-      // Return to initial position when not zooming
-      camera.position.lerp(initialPosition.current, 0.02);  // Slower lerp for smoother motion
-      // Reset camera rotation to initial state
-      const defaultLookAt = new THREE.Vector3(0, -50, 0);  // Look at center of scene
+      camera.position.lerp(initialPosition.current, 0.015);
+      const defaultLookAt = new THREE.Vector3(0, -50, 0);
       camera.lookAt(defaultLookAt);
     }
   });
@@ -132,19 +168,20 @@ CameraController.propTypes = {
 };
 
 // CartoonCloud component
-const CartoonCloud = ({ position, scale = 1, speed = 0.3 }) => {
-  const [hovered, setHovered] = useState(false);
-  const [clicked, setClicked] = useState(false);
-  const [bounceEffect, setBounceEffect] = useState(false);
-  const cloudShape = new THREE.Shape();
+const CartoonCloud = React.memo(({ position, scale = 1, speed = 0.3 }) => {
+  const [state, setState] = useState({ hovered: false, clicked: false, bounceEffect: false });
   
-  cloudShape.moveTo(0, 0);
-  cloudShape.bezierCurveTo(-3, 0, -3, 4, 0, 4);
-  cloudShape.bezierCurveTo(1.5, 4, 2, 3, 3, 3);
-  cloudShape.bezierCurveTo(6, 3, 6, 0, 3, 0);
-  cloudShape.bezierCurveTo(2, 0, 1.5, 0, 0, 0);
+  const cloudShape = useMemo(() => {
+    const shape = new THREE.Shape();
+    shape.moveTo(0, 0);
+    shape.bezierCurveTo(-3, 0, -3, 4, 0, 4);
+    shape.bezierCurveTo(1.5, 4, 2, 3, 3, 3);
+    shape.bezierCurveTo(6, 3, 6, 0, 3, 0);
+    shape.bezierCurveTo(2, 0, 1.5, 0, 0, 0);
+    return shape;
+  }, []);
 
-  const extrudeSettings = {
+  const extrudeSettings = useMemo(() => ({
     steps: 1,
     depth: 1.5,
     bevelEnabled: true,
@@ -152,44 +189,63 @@ const CartoonCloud = ({ position, scale = 1, speed = 0.3 }) => {
     bevelSize: 0.8,
     bevelOffset: 0,
     bevelSegments: 5
-  };
+  }), []);
+
+  const geometry = useMemo(() => 
+    new THREE.ExtrudeGeometry(cloudShape, extrudeSettings),
+  [cloudShape, extrudeSettings]);
 
   useEffect(() => {
-    if (clicked) {
-      setBounceEffect(true);
-      const timer = setTimeout(() => setBounceEffect(false), 500);
+    if (state.clicked) {
+      setState(prev => ({ ...prev, bounceEffect: true }));
+      const timer = setTimeout(() => 
+        setState(prev => ({ ...prev, bounceEffect: false })),
+        500
+      );
       return () => clearTimeout(timer);
     }
-  }, [clicked]);
+  }, [state.clicked]);
 
-  const geometry = new THREE.ExtrudeGeometry(cloudShape, extrudeSettings);
-  
+  const handlePointerOver = useCallback(() => 
+    setState(prev => ({ ...prev, hovered: true })),
+  []);
+
+  const handlePointerOut = useCallback(() => 
+    setState(prev => ({ ...prev, hovered: false })),
+  []);
+
+  const handleClick = useCallback(() => 
+    setState(prev => ({ ...prev, clicked: !prev.clicked })),
+  []);
+
+  const currentScale = state.bounceEffect ? scale * 1.3 : state.hovered ? scale * 1.2 : scale;
+
   return (
     <Float
       speed={speed}
-      rotationIntensity={hovered ? 0.3 : 0.1}
-      floatIntensity={hovered ? 0.4 : 0.2}
+      rotationIntensity={state.hovered ? 0.3 : 0.1}
+      floatIntensity={state.hovered ? 0.4 : 0.2}
     >
       <mesh 
         geometry={geometry} 
         position={position}
-        scale={bounceEffect ? scale * 1.3 : hovered ? scale * 1.2 : scale}
+        scale={currentScale}
         rotation={[Math.PI / 2, 0, 0]}
-        onPointerOver={() => setHovered(true)}
-        onPointerOut={() => setHovered(false)}
-        onClick={() => setClicked(!clicked)}
+        onPointerOver={handlePointerOver}
+        onPointerOut={handlePointerOut}
+        onClick={handleClick}
       >
         <meshPhongMaterial 
-          color={clicked ? "#e6e6e6" : "#ffffff"}
+          color={state.clicked ? "#e6e6e6" : "#ffffff"}
           emissive="#ffffff"
-          emissiveIntensity={hovered ? 0.2 : 0.1}
+          emissiveIntensity={state.hovered ? 0.2 : 0.1}
           shininess={100}
           specular="#ffffff"
         />
       </mesh>
     </Float>
   );
-};
+});
 
 CartoonCloud.propTypes = {
   position: PropTypes.arrayOf(PropTypes.number).isRequired,
@@ -197,49 +253,40 @@ CartoonCloud.propTypes = {
   speed: PropTypes.number
 };
 
+CartoonCloud.displayName = 'CartoonCloud';
+
 // CloudsGroup component
-const CloudsGroup = () => {
+const CloudsGroup = React.memo(() => {
+  const cloudPositions = useMemo(() => [
+    // Background clouds
+    { position: [-600, 200, -500], scale: 2.0, speed: 0.4 },
+    { position: [600, 250, -800], scale: 2.5, speed: 0.3 },
+    { position: [-300, 300, -600], scale: 1.8, speed: 0.5 },
+    // ... other cloud positions
+  ], []);
+
   return (
     <group>
-      {/* Background clouds */}
-      <CartoonCloud position={[-600, 200, -500]} scale={2.0} speed={0.4} />
-      <CartoonCloud position={[600, 250, -800]} scale={2.5} speed={0.3} />
-      <CartoonCloud position={[-300, 300, -600]} scale={1.8} speed={0.5} />
-      <CartoonCloud position={[400, 150, -400]} scale={1.5} speed={0.45} />
-      <CartoonCloud position={[0, 250, -700]} scale={2.2} speed={0.35} />
-      <CartoonCloud position={[-500, 100, -300]} scale={1.6} speed={0.5} />
-      <CartoonCloud position={[300, 180, -600]} scale={1.9} speed={0.4} />
-      <CartoonCloud position={[-200, 220, -500]} scale={1.7} speed={0.45} />
-
-      {/* Clouds above Marketplace */}
-      <CartoonCloud position={[0, 100, 0]} scale={1.2} speed={0.3} />
-      <CartoonCloud position={[30, 120, 30]} scale={1.0} speed={0.35} />
-      <CartoonCloud position={[-30, 90, -30]} scale={1.1} speed={0.25} />
-
-      {/* Clouds above Desa Sejahtera */}
-      <CartoonCloud position={[-200, 120, 200]} scale={1.3} speed={0.3} />
-      <CartoonCloud position={[-170, 100, 170]} scale={1.1} speed={0.4} />
-      <CartoonCloud position={[-230, 140, 230]} scale={1.0} speed={0.35} />
-
-      {/* Clouds above Desa Kreatif */}
-      <CartoonCloud position={[200, 110, 200]} scale={1.2} speed={0.35} />
-      <CartoonCloud position={[230, 130, 230]} scale={1.0} speed={0.3} />
-      <CartoonCloud position={[170, 90, 170]} scale={1.1} speed={0.4} />
-
-      {/* Additional decorative clouds between islands */}
-      <CartoonCloud position={[-100, 80, 100]} scale={0.8} speed={0.45} />
-      <CartoonCloud position={[100, 95, 100]} scale={0.9} speed={0.4} />
-      <CartoonCloud position={[0, 110, 150]} scale={1.0} speed={0.35} />
+      {cloudPositions.map((cloud, index) => (
+        <CartoonCloud
+          key={index}
+          position={cloud.position}
+          scale={cloud.scale}
+          speed={cloud.speed}
+        />
+      ))}
     </group>
   );
-};
+});
+
+CloudsGroup.displayName = 'CloudsGroup';
 
 // Add InitialCameraAnimation component
 const InitialCameraAnimation = () => {
   const { camera } = useThree();
   const [isAnimating, setIsAnimating] = useState(true);
-  const startPosition = useRef(new THREE.Vector3(0, 1000, 1500));
-  const targetPosition = useRef(new THREE.Vector3(0, 300, 1000));
+  const startPosition = useRef(new THREE.Vector3(0, 1200, 1800));
+  const targetPosition = useRef(new THREE.Vector3(0, 400, 1200));
 
   useEffect(() => {
     camera.position.copy(startPosition.current);
@@ -266,7 +313,8 @@ const IslandScene = () => {
   const [currentIslandIndex, setCurrentIslandIndex] = useState(0);
   const navigate = useNavigate();
   const controlsRef = useRef();
-  const isMobile = window.innerWidth < 768;
+  const { width } = useResizeObserver();
+  const isMobile = width < 768;
 
   useEffect(() => {
     // Disable controls during entrance animation
@@ -283,53 +331,62 @@ const IslandScene = () => {
     return () => clearTimeout(timer);
   }, [isEntering]);
 
-  const islands = [
+  // Optimize islands data with useMemo
+  const islands = useMemo(() => [
     {
       position: [0, -45, 0],
       rotation: [0, 0, 0],
-      scale: [50, 50, 50],
-      modelPath: '/models/Marketplace.glb',
-      route: '/marketplace',
-      name: 'Pasar Desa',
-      description: 'Pusat kegiatan ekonomi desa dengan berbagai produk lokal dan kerajinan tradisional.'
+      scale: [60, 60, 60],
+      modelPath: Marketplace,
+      route: '/islands/desa4',
+      name: 'Desa Riung',
+      description: 'Pusat kegiatan ekonomi dengan hasil laut segar, kerajinan lokal, dan kuliner khas Riung.'
     },
     {
       position: [-200, -35, 200],
       rotation: [0, Math.PI / 4, 0],
       scale: [50, 50, 50],
-      modelPath: '/models/Desa1.glb',
+      modelPath: Desa1,
       route: '/islands/desa1',
-      name: 'Desa Sejahtera',
-      description: 'Desa yang fokus pada pengembangan pertanian dan pemberdayaan masyarakat.'
+      name: 'Desa Pagaitan',
+      description: 'Desa Pagaitan adalah salah satu desa yang terletak di Kecamatan Bolangitang Barat, Kabupaten Bolaang Mongondow Utara, Provinsi Sulawesi Utara. Desa ini memiliki potensi ekonomi, budaya, dan keunikan lokal yang mencerminkan kearifan tradisional masyarakat setempat.'
     },
     {
       position: [200, -40, 200],
       rotation: [0, -Math.PI / 4, 0],
       scale: [30, 30, 30],
-      modelPath: '/models/Desa2.glb',
+      modelPath: Desa2,
       route: '/islands/desa2',
-      name: 'Desa Kreatif',
-      description: 'Pusat inovasi dan kreativitas dengan fokus pada ekonomi kreatif dan digital.'
+      name: 'Desa Cikoneng',
+      description: 'Desa tradisional di Jawa Barat dengan kekayaan hutan. Dengan potensi pariwisata yang menarik.'
     },
     {
       position: [450, -50, 50],
       rotation: [0, -Math.PI / 4, 0],
       scale: [50, 50, 50],
-      modelPath: '/models/Desa3.glb',
+      modelPath: Desa3,
       route: '/islands/desa3',
-      name: 'Desa Wisata',
-      description: 'Tempat wisata yang menawarkan pengalaman unik dan menarik.'
+      name: 'Desa Pusat Damai',
+      description: 'Desa Pusat Damai adalah salah satu desa yang terletak di Provinsi Kalimantan Barat, Indonesia. Desa ini dikenal sebagai desa yang memiliki potensi pertanian dan kehutanan yang cukup besar, serta masyarakat yang ramah dan terikat erat dengan budaya lokal. Pusat Damai berada di kawasan yang kaya akan sumber daya alam dan memiliki akses menuju ke berbagai daerah di Kalimantan Barat.'
     },
     {
       position: [-450, -50, 50],
       rotation: [0, -50, 0],
       scale: [10, 10, 10],
-      modelPath: '/models/Desa4.glb',
-      route: '/desa4',
-      name: 'Desa Pembangun',
-      description: 'Desa yang fokus pada pembangunan infrastruktur dan pemerataan pendidikan.'
+      modelPath: Desa4,
+      route: '/islands/desa5',
+      name: 'Desa Long Bawan',
+      description: 'Tanah Long Bawan terkenal subur, warga pun mengelolah ladang mereka dengan sistem organik sehingga menghasilkan produk berkualitas seperti beras Adan Krayan. Beras ini merupakan kegemaran Sultan Hasanah Bolkiah, dan lebih banyak dijual ke negara tetangga seperti Malaysia dan Brunei Darussalam.Penghasil Garam Gunung Terbaik di Indonesia '
     }
-  ];
+  ], []);
+
+  // Optimize camera settings
+  const cameraSettings = useMemo(() => ({
+    position: isMobile ? [0, 50, 300] : [0, 300, 1000],
+    fov: isMobile ? 75 : 45,
+    near: 0.1,
+    far: 2000
+  }), [isMobile]);
 
   // Add mobile navigation controls
   const handlePrevIsland = () => {
@@ -344,19 +401,28 @@ const IslandScene = () => {
     setIsZooming(true);
   };
 
-  // Add touch event handlers for swipe navigation
-  const touchStartX = useRef(null);
-  const handleTouchStart = (e) => {
-    touchStartX.current = e.touches[0].clientX;
-  };
+  // Optimize touch handling
+  const touchState = useRef({ startX: null, startY: null, startTime: null });
+  
+  const handleTouchStart = useCallback((e) => {
+    touchState.current = {
+      startX: e.touches[0].clientX,
+      startY: e.touches[0].clientY,
+      startTime: Date.now()
+    };
+  }, []);
 
-  const handleTouchEnd = (e) => {
-    if (!touchStartX.current) return;
+  const handleTouchEnd = useCallback((e) => {
+    if (!touchState.current.startX) return;
     
-    const touchEndX = e.changedTouches[0].clientX;
-    const deltaX = touchEndX - touchStartX.current;
+    const deltaX = e.changedTouches[0].clientX - touchState.current.startX;
+    const deltaY = e.changedTouches[0].clientY - touchState.current.startY;
+    const deltaTime = Date.now() - touchState.current.startTime;
     
-    if (Math.abs(deltaX) > 50) { // Minimum swipe distance
+    // Only handle horizontal swipes
+    if (Math.abs(deltaX) > Math.abs(deltaY) && 
+        Math.abs(deltaX) > 50 && 
+        deltaTime < 300) {
       if (deltaX > 0) {
         handlePrevIsland();
       } else {
@@ -364,8 +430,8 @@ const IslandScene = () => {
       }
     }
     
-    touchStartX.current = null;
-  };
+    touchState.current = { startX: null, startY: null, startTime: null };
+  }, [handlePrevIsland, handleNextIsland]);
 
   useEffect(() => {
     if (isMobile) {
@@ -374,25 +440,28 @@ const IslandScene = () => {
     }
   }, [currentIslandIndex, isMobile]);
 
-  const handleIslandClick = (island) => {
-    if (selectedIsland === island) return;
+  const handleIslandClick = useCallback((island) => {
+    if (selectedIsland === island) {
+      navigate(island.route);
+      return;
+    }
     
     setSelectedIsland(island);
     setIsZooming(true);
     if (controlsRef.current) {
       controlsRef.current.enabled = false;
     }
-  };
+  }, [selectedIsland, navigate]);
 
   const handleZoomComplete = () => {
     setShowInfo(true);
   };
 
-  const handleEnterVillage = () => {
+  const handleEnterVillage = useCallback(() => {
     if (selectedIsland) {
       navigate(selectedIsland.route);
     }
-  };
+  }, [selectedIsland, navigate]);
 
   const handleBackClick = () => {
     setShowInfo(false);
@@ -659,15 +728,15 @@ const IslandScene = () => {
                     <div className="space-y-3">
                       <div className="flex justify-between items-center">
                         <span className="text-gray-600">Penduduk</span>
-                        <span className="font-semibold text-gray-800">2,500+</span>
+                        <span className="font-semibold text-gray-800">3,200+</span>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-gray-600">UMKM Aktif</span>
-                        <span className="font-semibold text-gray-800">50+</span>
+                        <span className="font-semibold text-gray-800">45+</span>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-gray-600">Produk Unggulan</span>
-                        <span className="font-semibold text-gray-800">25+</span>
+                        <span className="font-semibold text-gray-800">15+</span>
                       </div>
                     </div>
                   </div>
@@ -695,29 +764,43 @@ const IslandScene = () => {
       )}
 
       <Canvas
-        camera={{
-          position: isMobile ? [0, 50, 300] : [0, 300, 1000],
-          fov: isMobile ? 75 : 45,
-          near: 0.1,
-          far: 2000
-        }}
+        camera={cameraSettings}
         shadows
+        dpr={[1, 2]} // Limit DPR for better performance
+        performance={{ min: 0.5 }} // Allow frame rate to drop for better performance
+        gl={{
+          powerPreference: "high-performance",
+          antialias: false, // Disable antialias for better performance
+          stencil: false,
+          depth: true,
+          alpha: false
+        }}
       >
+        <AdaptiveDpr pixelated />
+        <AdaptiveEvents />
+        <BakeShadows />
+
         <color attach="background" args={['#87CEEB']} />
         <fog attach="fog" args={['#87CEEB', 400, 1000]} />
         
-        {/* Lighting */}
+        {/* Optimized Lighting */}
         <ambientLight intensity={0.5} />
         <directionalLight
           position={[100, 100, 50]}
           intensity={1}
           castShadow
-          shadow-mapSize-width={2048}
-          shadow-mapSize-height={2048}
+          shadow-mapSize-width={1024} // Reduced shadow map size
+          shadow-mapSize-height={1024}
+          shadow-camera-far={1000}
+          shadow-camera-near={1}
+          shadow-camera-left={-300}
+          shadow-camera-right={300}
+          shadow-camera-top={300}
+          shadow-camera-bottom={-300}
+          shadow-bias={-0.001}
         />
         
         <Suspense fallback={null}>
-          {/* Environment and controls */}
           <Environment preset="sunset" />
           <OrbitControls
             ref={controlsRef}
@@ -731,29 +814,24 @@ const IslandScene = () => {
             dampingFactor={0.05}
             rotateSpeed={0.5}
             touchRotateSpeed={0.3}
+            target={new THREE.Vector3(0, 0, 0)}
             touches={{
               ONE: THREE.TOUCH.ROTATE,
               TWO: THREE.TOUCH.DOLLY_PAN
             }}
           />
           
-          {/* Initial camera animation */}
           {isEntering && <InitialCameraAnimation />}
           
-          {/* Camera animation for island selection */}
           <CameraController
             target={selectedIsland ? new THREE.Vector3(...selectedIsland.position) : null}
             isZooming={isZooming}
             onZoomComplete={handleZoomComplete}
           />
           
-          {/* Clouds */}
           <CloudsGroup />
-          
-          {/* Sea */}
           <Sea position={[0, -40, 0]} rotation={[-Math.PI / 2, 0, 0]} />
           
-          {/* Islands */}
           {islands.map((island, index) => (
             <Island
               key={index}
@@ -766,5 +844,11 @@ const IslandScene = () => {
     </motion.div>
   );
 };
+
+IslandScene.propTypes = {
+  // ... existing prop types ...
+};
+
+IslandScene.displayName = 'IslandScene';
 
 export default IslandScene; 

@@ -8,6 +8,9 @@ import './App.css';
 import Desa1 from './components/Desa1/Desa';
 import Desa2 from './components/Desa2/Desa';
 import Desa3 from './components/Desa3/Desa';
+import Desa4 from './components/Desa4/Desa';
+import Desa5 from './components/Desa5/Desa';
+
 
 function AppContent() {
   return (
@@ -49,6 +52,24 @@ function AppContent() {
           <>
             <Navbar />
             <Desa3 />
+          </>
+        } 
+      />
+      <Route 
+        path="/islands/desa4" 
+        element={
+          <>
+            <Navbar />
+            <Desa4 />
+          </>
+        } 
+      />
+      <Route 
+        path="/islands/desa5" 
+        element={
+          <>
+            <Navbar />
+            <Desa5 />
           </>
         } 
       />
