@@ -44,6 +44,39 @@ body {
   }
 }
 
+@keyframes wave {
+  0% {
+    transform: translateX(0) translateZ(0) scaleY(1);
+  }
+  50% {
+    transform: translateX(-25%) translateZ(0) scaleY(0.95);
+  }
+  100% {
+    transform: translateX(-50%) translateZ(0) scaleY(1);
+  }
+}
+
+@keyframes wave2 {
+  0% {
+    transform: translateX(0) translateZ(0) scaleY(1);
+  }
+  50% {
+    transform: translateX(-25%) translateZ(0) scaleY(0.95);
+  }
+  100% {
+    transform: translateX(-50%) translateZ(0) scaleY(1);
+  }
+}
+
+@keyframes boatFloat {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
 .animate-spin-slow {
   animation: spin-slow 3s linear infinite;
 }
@@ -54,4 +87,16 @@ body {
 
 .animate-progress-bar {
   animation: progress-bar 2s ease-in-out forwards;
+}
+
+.animate-wave {
+  animation: wave 2s infinite linear;
+}
+
+.animate-wave2 {
+  animation: wave2 4s infinite linear;
+}
+
+.animate-boatFloat {
+  animation: boatFloat 3s infinite ease-in-out;
 }

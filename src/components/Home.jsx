@@ -1,4 +1,4 @@
-import { Suspense, useState, useEffect, useCallback, useMemo } from 'react';
+import React, { Suspense, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { 
   OrbitControls, 
@@ -16,13 +16,14 @@ import { Howl } from 'howler';
 import { FaSun, FaMoon } from 'react-icons/fa';
 import { IoLanguage } from 'react-icons/io5';
 import { MdEmail, MdPhone, MdLocationOn, MdLightbulb } from 'react-icons/md';
-import { BsArrowRightShort, BsBook } from 'react-icons/bs';
+import { BsBook } from 'react-icons/bs';
 import { RiRocketLine, RiCommunityLine, RiTeamLine } from 'react-icons/ri';
 import { IoIosArrowBack, IoIosArrowForward, IoIosArrowDown } from 'react-icons/io';
 import { useNavigate } from 'react-router-dom';
 import BoatLoadingScreen from './BoatLoadingScreen';
 import Village from '../../public/models/Village.glb'
 import Loading from './Loading';
+import { HiLightBulb } from 'react-icons/hi';
 
 // Add ESLint exceptions for Three.js props
 /* eslint-disable react/no-unknown-property */
@@ -82,13 +83,13 @@ const translations = {
 
 // Particle system component
 const ParticleField = () => {
-  const count = 100;
+  const count = 30;
   const positions = useMemo(() => {
     const pos = new Float32Array(count * 3);
     for (let i = 0; i < count; i++) {
-      pos[i * 3] = (Math.random() - 0.5) * 10;
-      pos[i * 3 + 1] = Math.random() * 10;
-      pos[i * 3 + 2] = (Math.random() - 0.5) * 10;
+      pos[i * 3] = (Math.random() - 0.5) * 6;
+      pos[i * 3 + 1] = Math.random() * 6;
+      pos[i * 3 + 2] = (Math.random() - 0.5) * 6;
     }
     return pos;
   }, []);
@@ -104,7 +105,7 @@ const ParticleField = () => {
         />
       </bufferGeometry>
       <pointsMaterial
-        size={0.1}
+        size={0.2}
         color="#ffffff"
         transparent
         opacity={0.6}
@@ -188,15 +189,36 @@ LanguageToggle.propTypes = {
   onToggle: PropTypes.func.isRequired
 };
 
-function Model() {
-  const { scene } = useGLTF(Village);
+// Optimize Model component without LOD
+const Model = React.memo(() => {
+  const { scene } = useGLTF(Village, {
+    draco: true // Enable draco compression
+  });
   const [hovered, setHovered] = useState(false);
   const [clicked, setClicked] = useState(false);
   const [rotateSpeed, setRotateSpeed] = useState(0.01);
+  const modelRef = useRef();
+
+  // Clean up memory when component unmounts
+  useEffect(() => {
+    return () => {
+      // Dispose of geometries and materials
+      scene.traverse((object) => {
+        if (object.geometry) object.geometry.dispose();
+        if (object.material) {
+          if (Array.isArray(object.material)) {
+            object.material.forEach(material => material.dispose());
+          } else {
+            object.material.dispose();
+          }
+        }
+      });
+    };
+  }, [scene]);
 
   useFrame(() => {
-    if (clicked) {
-      scene.rotation.y += rotateSpeed;
+    if (clicked && modelRef.current) {
+      modelRef.current.rotation.y += rotateSpeed;
     }
   });
 
@@ -206,19 +228,24 @@ function Model() {
       rotationIntensity={hovered ? 0.8 : 0.5}
       floatIntensity={hovered ? 0.8 : 0.5}
     >
-      <primitive 
-        object={scene} 
-        scale={clicked ? 15 : 10} 
-        position={[0, -1, 0]}
+      <group 
+        ref={modelRef}
+        position={[0, 0, 0]}
+        scale={clicked ? 13 : 10}
         onPointerOver={() => setHovered(true)}
         onPointerOut={() => setHovered(false)}
         onClick={() => {
           setClicked(!clicked);
           setRotateSpeed(prev => clicked ? 0.01 : prev + 0.01);
         }}
-      />
+      >
+        <primitive 
+          object={scene} 
+          rotation={[0, Math.PI / 4, 0]}
+        />
+      </group>
       {hovered && (
-        <Html position={[0, 2, 0]} style={{ pointerEvents: 'none' }}>
+        <Html position={[0, 1, 0]} style={{ pointerEvents: 'none' }}>
           <div className="bg-white px-4 py-2 rounded-2xl shadow-lg text-sm border-4 border-green-400 transform -rotate-2 animate-bounce">
             <span className="text-green-600 font-bold flex items-center gap-2">
               <span className="text-lg">🏠</span>
@@ -230,7 +257,9 @@ function Model() {
       )}
     </Float>
   );
-}
+});
+
+Model.displayName = 'Model';
 
 function CartoonCloud({ position, scale = 1, speed = 0.3 }) {
   const [hovered, setHovered] = useState(false);
@@ -366,6 +395,122 @@ TabButton.propTypes = {
   onClick: PropTypes.func.isRequired
 };
 
+// Add new components
+const FloatingIsland = ({ position, scale, rotationSpeed = 0.001, children }) => {
+  const islandRef = useRef();
+  const [hovered, setHovered] = useState(false);
+
+  useFrame((state) => {
+    if (islandRef.current) {
+      islandRef.current.rotation.y += rotationSpeed;
+      islandRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime) * 0.1;
+    }
+  });
+
+  return (
+    <group
+      ref={islandRef}
+      position={position}
+      scale={hovered ? scale * 1.1 : scale}
+      onPointerOver={() => setHovered(true)}
+      onPointerOut={() => setHovered(false)}
+    >
+      {children}
+    </group>
+  );
+};
+
+FloatingIsland.propTypes = {
+  position: PropTypes.arrayOf(PropTypes.number).isRequired,
+  scale: PropTypes.number.isRequired,
+  rotationSpeed: PropTypes.number,
+  children: PropTypes.node.isRequired
+};
+
+const ParticleWave = () => {
+  const count = 100;
+  const positions = useMemo(() => {
+    const pos = new Float32Array(count * 3);
+    for (let i = 0; i < count; i++) {
+      pos[i * 3] = (Math.random() - 0.5) * 10;
+      pos[i * 3 + 1] = Math.sin(i / 10) * 2;
+      pos[i * 3 + 2] = (Math.random() - 0.5) * 10;
+    }
+    return pos;
+  }, []);
+
+  useFrame((state) => {
+    const time = state.clock.getElapsedTime();
+    for (let i = 0; i < count; i++) {
+      positions[i * 3 + 1] = Math.sin(i / 10 + time) * 2;
+    }
+  });
+
+  return (
+    <points>
+      <bufferGeometry>
+        <bufferAttribute
+          attachObject={['attributes', 'position']}
+          count={count}
+          array={positions}
+          itemSize={3}
+        />
+      </bufferGeometry>
+      <pointsMaterial
+        size={0.1}
+        color="#4CAF50"
+        transparent
+        opacity={0.6}
+        sizeAttenuation
+      />
+    </points>
+  );
+};
+
+const FloatingTip = () => {
+  const tips = [
+    "Jelajahi fitur desa digital kami! 🌐",
+    "Bergabung dengan komunitas desa! 🤝",
+    "Temukan potensi desamu! ⭐",
+    "Mari berkolaborasi untuk Indonesia! 🇮🇩"
+  ];
+  const [currentTip, setCurrentTip] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTip((prev) => (prev + 1) % tips.length);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="fixed bottom-4 right-4 z-30 w-full max-w-[90vw] sm:max-w-sm md:max-w-md hidden md:block"
+    >
+      <motion.div
+        className="flex items-center gap-2 bg-green-500/90 backdrop-blur-md p-3 sm:p-4 rounded-2xl
+          shadow-lg border border-white/20 mx-4 sm:mx-0"
+        initial={{ scale: 0.9 }}
+        animate={{ scale: 1 }}
+        transition={{ duration: 0.5 }}
+      >
+        <HiLightBulb className="text-xl sm:text-2xl text-white flex-shrink-0" />
+        <motion.p
+          key={currentTip}
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -20 }}
+          className="text-sm sm:text-base text-white flex-1 min-w-0"
+        >
+          {tips[currentTip]}
+        </motion.p>
+      </motion.div>
+    </motion.div>
+  );
+};
+
 function Home() {
   const [activeTab, setActiveTab] = useState('about');
   const [loading, setLoading] = useState(true);
@@ -378,6 +523,15 @@ function Home() {
 
   // Get current translations
   const t = translations[currentLang];
+
+  const handleLoadingComplete = useCallback(() => {
+    setLoading(false);
+  }, []);
+
+  // Preload model
+  useEffect(() => {
+    useGLTF.preload(Village);
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => setLoading(false), 1500);
@@ -398,11 +552,10 @@ function Home() {
     soundEffects.success.play();
     setShowBoatTransition(true);
     
-    // Reset transition and navigate after animation completes
     setTimeout(() => {
       setShowBoatTransition(false);
       navigate('/islands');
-    }, 4000); // 4 seconds for boat animation
+    }, 4000);
   };
 
   const toggleTheme = () => {
@@ -421,11 +574,66 @@ function Home() {
     );
   };
 
-  useGLTF.preload(Village);
+  // Memoize camera settings
+  const cameraSettings = useMemo(() => ({
+    position: [2, 15, 7],
+    fov: 35,
+    near: 0.1,
+    far: 1000
+  }), []);
+
+  // Memoize scene settings
+  const sceneSettings = useMemo(() => ({
+    stars: {
+      radius: 80,
+      depth: 40,
+      count: 1000,
+      factor: 3,
+      saturation: 0,
+      fade: true,
+      speed: 0.3
+    },
+    sparkles: {
+      count: 20,
+      scale: 6,
+      size: 1.5,
+      speed: 0.2
+    },
+    fog: {
+      color: isDarkTheme ? '#1a1a1a' : '#87CEEB',
+      near: 1,
+      far: 30
+    },
+    background: isDarkTheme 
+      ? 'linear-gradient(to bottom, #1a1a1a, #2d3748)'
+      : 'linear-gradient(to bottom, #87CEEB, #60A5FA)',
+  }), [isDarkTheme]);
+
+  // Memoize light settings
+  const lightSettings = useMemo(() => ({
+    ambient: {
+      intensity: isDarkTheme ? 0.3 : 0.6
+    },
+    directional: {
+      position: [5, 5, 5],
+      intensity: isDarkTheme ? 0.6 : 1.2,
+      color: isDarkTheme ? '#ffffff' : '#ffffff'
+    },
+    spot: {
+      position: [-5, 5, -5],
+      intensity: isDarkTheme ? 0.4 : 0.8,
+      color: isDarkTheme ? '#ffffff' : '#ffffff'
+    },
+    hemisphere: {
+      intensity: isDarkTheme ? 0.3 : 0.6,
+      skyColor: isDarkTheme ? '#ffffff' : '#87CEEB',
+      groundColor: isDarkTheme ? '#000000' : '#ffffff'
+    }
+  }), [isDarkTheme]);
 
   return (
     <div className={`relative w-full h-screen ${isDarkTheme ? 'dark' : ''}`}>
-      {loading && <Loading />}
+      {loading && <Loading onComplete={handleLoadingComplete} />}
 
       <AnimatePresence>
         {showBoatTransition && <BoatLoadingScreen />}
@@ -441,151 +649,245 @@ function Home() {
 
       {/* Bottom Sheet / Side Card Content */}
       <motion.div 
-        className={`fixed lg:relative lg:w-[45%] pointer-events-none
+        className={`fixed lg:relative lg:w-[30%] pointer-events-none
           ${isCardVisible 
             ? 'bottom-0 left-0 right-0 z-20' 
             : 'bottom-[-90vh] left-0 right-0 lg:bottom-0 lg:left-[-100%] z-10'
           }
           transition-all duration-500 ease-in-out`}
-        initial={{ y: '100%', x: 0 }}
-        animate={{ 
-          y: isCardVisible ? 0 : '100%',
-          x: isCardVisible ? 0 : (window.innerWidth >= 1024 ? -100 : 0)
-        }}
-        transition={{ type: 'spring', damping: 20, stiffness: 100 }}
       >
         {/* Drag Handle for Mobile */}
-        <div className="lg:hidden w-full flex justify-center items-center py-3 pointer-events-auto">
-          <div className="w-16 h-1.5 bg-white/30 rounded-full" />
+        <div className="lg:hidden w-full flex justify-center items-center py-1 pointer-events-auto">
+          <div className="w-10 h-1 bg-white/30 rounded-full" />
         </div>
 
-        <div className="text-left text-white w-full max-w-2xl mx-auto pt-10 px-8 pb-safe lg:pb-0 lg:px-12">
-          <div className="bg-gradient-to-br from-green-600/95 via-green-500/95 to-green-600/95 
-            rounded-t-[2.5rem] lg:rounded-[2.5rem] shadow-2xl border-t-4 lg:border-4 border-white/30 
-            backdrop-blur-md relative overflow-hidden group"
-          >
-            {/* Glass Effect Overlay */}
-            <div className="absolute inset-0 bg-white/5"></div>
-
+        <div className="text-left w-full max-w-md mx-auto px-3 sm:px-4 md:px-6 lg:px-4 pb-safe lg:pb-0 pt-3 lg:pt-28">
+          <div className="bg-gradient-to-br from-green-500 via-green-600 to-green-500 glass-card 
+            rounded-t-[1.5rem] lg:rounded-[1.5rem] shadow-2xl border border-white/20 
+            relative overflow-hidden group pointer-events-auto transform hover:scale-[1.02] transition-all duration-500">
+            
             {/* Content Container */}
-            <div className="relative p-6 md:p-8 lg:p-10 pointer-events-auto space-y-10 lg:space-y-8">
-              {/* Title Section */}
-              <div className="space-y-5">
-                <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold 
-                  drop-shadow-lg leading-tight relative tracking-tight"
+            <div className="relative p-3 sm:p-4 lg:p-6 space-y-4 lg:space-y-6">
+              {/* Enhanced Title Section */}
+              <div className="space-y-2 sm:space-y-3">
+                <motion.div 
+                  className="relative"
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.7, ease: "easeOut" }}
                 >
-                  <span className="inline-block transform hover:scale-105 
-                    transition-transform cursor-default animate-float"
+                  <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-transparent bg-clip-text 
+                    bg-gradient-to-r from-white via-white/90 to-white tracking-tight leading-none
+                    text-shadow-glow relative z-10">
+                    {t.title}
+                  </h1>
+                  <motion.div 
+                    className="absolute -right-2 -top-2 text-2xl sm:text-3xl animate-float"
+                    animate={{ 
+                      rotate: [0, 10, -10, 0],
+                      scale: [1, 1.2, 1.2, 1]
+                    }}
+                    transition={{ 
+                      duration: 3,
+                      repeat: Infinity,
+                      repeatType: "reverse"
+                    }}
                   >
-                    Sahabat Desa 
-                    <span className="absolute -right-8 top-0 animate-pulse"></span>
-                  </span>
-                </h1>
-                <p className="text-lg md:text-xl text-white/80 font-medium tracking-wide">
+                    ✨
+                  </motion.div>
+                </motion.div>
+                
+                <motion.p 
+                  className="text-sm sm:text-base text-white/90 font-medium leading-relaxed"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.7, delay: 0.2 }}
+                >
                   {t.subtitle}
-                </p>
-              </div>
-              
-              {/* Tab Navigation */}
-              <div className="flex flex-wrap gap-3">
-                {['about', 'features', 'contact'].map((tab) => (
-                  <TabButton
-                    key={tab}
-                    tab={tab}
-                    activeTab={activeTab}
-                    onClick={() => setActiveTab(tab)}
-                  />
-                ))}
+                </motion.p>
               </div>
 
-              {/* Tab Content */}
-              <div className="min-h-[180px] bg-black/10 rounded-2xl p-6 backdrop-blur-sm
-                border-2 border-white/10 transition-all duration-300"
-              >
-                {activeTab === 'about' && (
-                  <motion.div 
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -20 }}
-                    className="text-lg md:text-xl leading-relaxed"
-                  >
-                    <p className="flex items-center gap-3">
-                      <RiCommunityLine className="text-3xl text-yellow-300 animate-bounce" />
-                      {t.subtitle}
-                    </p>
-                  </motion.div>
-                )}
-                {activeTab === 'features' && (
-                  <motion.ul 
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -20 }}
-                    className="space-y-4"
-                  >
-                    <li className="flex items-center gap-3 group">
-                      <RiCommunityLine className="text-2xl group-hover:scale-125 transition-transform text-yellow-300" />
-                      <span className="group-hover:text-yellow-300 transition-colors">{t.features.community}</span>
-                    </li>
-                    <li className="flex items-center gap-3 group">
-                      <MdLightbulb className="text-2xl group-hover:scale-125 transition-transform text-yellow-300" />
-                      <span className="group-hover:text-yellow-300 transition-colors">{t.features.innovation}</span>
-                    </li>
-                    <li className="flex items-center gap-3 group">
-                      <RiTeamLine className="text-2xl group-hover:scale-125 transition-transform text-yellow-300" />
-                      <span className="group-hover:text-yellow-300 transition-colors">{t.features.collaboration}</span>
-                    </li>
-                  </motion.ul>
-                )}
-                {activeTab === 'contact' && (
-                  <motion.div 
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -20 }}
-                    className="space-y-4"
-                  >
-                    <p className="flex items-center gap-3 group">
-                      <MdEmail className="text-2xl group-hover:scale-125 transition-transform text-yellow-300" />
-                      <span className="group-hover:text-yellow-300 transition-colors">info@sahabatdesa.id</span>
-                    </p>
-                    <p className="flex items-center gap-3 group">
-                      <MdPhone className="text-2xl group-hover:scale-125 transition-transform text-yellow-300" />
-                      <span className="group-hover:text-yellow-300 transition-colors">+62 123 4567 890</span>
-                    </p>
-                    <p className="flex items-center gap-3 group">
-                      <MdLocationOn className="text-2xl group-hover:scale-125 transition-transform text-yellow-300" />
-                      <span className="group-hover:text-yellow-300 transition-colors">Jakarta, Indonesia</span>
-                    </p>
-                  </motion.div>
-                )}
+              {/* Enhanced Tab Navigation */}
+              <div className="bg-black/10 backdrop-blur-md rounded-lg p-1 border border-white/10">
+                <div className="flex flex-nowrap overflow-x-auto sm:flex-wrap gap-1 sm:gap-1.5 hide-scrollbar">
+                  {['about', 'features', 'contact'].map((tab) => (
+                    <motion.button
+                      key={tab}
+                      onClick={() => setActiveTab(tab)}
+                      className={`px-2 sm:px-3 py-1.5 rounded-lg transition-all duration-300 text-xs sm:text-sm font-medium
+                        relative overflow-hidden flex-shrink-0 ${activeTab === tab 
+                          ? 'bg-gradient-to-r from-green-500 to-green-600 text-white shadow-lg' 
+                          : 'bg-white/5 text-white/80 hover:bg-white/10'}`}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      <span className="relative z-10">{tab.charAt(0).toUpperCase() + tab.slice(1)}</span>
+                      {activeTab === tab && (
+                        <motion.div
+                          className="absolute inset-0 bg-gradient-to-r from-green-400/0 via-green-400/30 to-green-400/0"
+                          initial={{ x: '-100%' }}
+                          animate={{ x: '100%' }}
+                          transition={{ duration: 1, repeat: Infinity }}
+                        />
+                      )}
+                    </motion.button>
+                  ))}
+                </div>
               </div>
 
-              {/* Action Buttons */}
-              <div className="space-y-3">
-                <button 
+              {/* Enhanced Tab Content */}
+              <div className="min-h-[180px] bg-gradient-to-br from-black/20 via-black/10 to-black/5 
+                rounded-lg p-3 sm:p-4 backdrop-blur-md border border-white/10 relative overflow-hidden">
+                
+                <AnimatePresence mode="wait">
+                  {activeTab === 'about' && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -20 }}
+                      className="space-y-3 sm:space-y-4 relative"
+                    >
+                      <div className="flex items-start gap-2 sm:gap-3 group">
+                        <div className="p-2 sm:p-2.5 bg-gradient-to-br from-green-500/20 to-green-600/20 rounded-lg
+                          border border-green-400/20 shadow-lg animate-float">
+                          <RiCommunityLine className="text-lg sm:text-xl text-white group-hover:scale-110 transition-transform" />
+                        </div>
+                        <div className="flex-1 space-y-1">
+                          <h3 className="text-base sm:text-lg font-bold text-white bg-gradient-to-r from-white to-white/80 
+                            bg-clip-text text-transparent">
+                            Tentang Kami
+                          </h3>
+                          <p className="text-xs sm:text-sm text-white/80 leading-relaxed">
+                            Platform inovatif yang menghubungkan dan memberdayakan desa-desa di Indonesia 
+                            melalui teknologi digital dan kolaborasi komunitas.
+                          </p>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {activeTab === 'features' && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -20 }}
+                      className="space-y-2 sm:space-y-3 relative"
+                    >
+                      {Object.entries(t.features).slice(1).map(([key, value], index) => (
+                        <motion.div 
+                          key={key}
+                          className="flex items-center gap-3 sm:gap-4 p-2 sm:p-3 rounded-lg transition-all duration-300
+                            bg-gradient-to-r hover:from-white/10 hover:to-transparent group"
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: index * 0.1 }}
+                          whileHover={{ x: 10 }}
+                        >
+                          <div className="p-2 sm:p-2.5 bg-gradient-to-br from-green-500/20 to-green-600/20 
+                            rounded-lg border border-green-400/20 shadow-lg group-hover:scale-110 transition-all duration-300">
+                            {key === 'community' && <RiCommunityLine className="text-lg sm:text-xl text-white" />}
+                            {key === 'innovation' && <MdLightbulb className="text-lg sm:text-xl text-white" />}
+                            {key === 'collaboration' && <RiTeamLine className="text-lg sm:text-xl text-white" />}
+                          </div>
+                          <span className="text-sm sm:text-base text-white/90 font-medium group-hover:text-white 
+                            transition-colors duration-300">
+                            {value}
+                          </span>
+                        </motion.div>
+                      ))}
+                    </motion.div>
+                  )}
+
+                  {activeTab === 'contact' && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -20 }}
+                      className="space-y-3 sm:space-y-4 relative"
+                    >
+                      <div className="grid gap-2 sm:gap-3">
+                        <motion.a 
+                          href="mailto:info@sahabatdesa.id"
+                          className="flex items-center gap-3 sm:gap-4 p-2 sm:p-3 rounded-lg 
+                            bg-gradient-to-r hover:from-white/10 hover:to-transparent
+                            transition-all duration-300 group"
+                          whileHover={{ x: 10, scale: 1.02 }}
+                        >
+                          <div className="p-2 sm:p-2.5 bg-gradient-to-br from-green-500/20 to-green-600/20 
+                            rounded-lg border border-green-400/20 shadow-lg group-hover:scale-110 transition-all duration-300">
+                            <MdEmail className="text-lg sm:text-xl text-white" />
+                          </div>
+                          <span className="text-sm sm:text-base text-white/90 font-medium group-hover:text-white">
+                            info@sahabatdesa.id
+                          </span>
+                        </motion.a>
+                        
+                        <motion.a 
+                          href="tel:+6281234567890"
+                          className="flex items-center gap-3 sm:gap-4 p-2 sm:p-3 rounded-lg 
+                            bg-gradient-to-r hover:from-white/10 hover:to-transparent
+                            transition-all duration-300 group"
+                          whileHover={{ x: 10, scale: 1.02 }}
+                        >
+                          <div className="p-2 sm:p-2.5 bg-gradient-to-br from-green-500/20 to-green-600/20 
+                            rounded-lg border border-green-400/20 shadow-lg group-hover:scale-110 transition-all duration-300">
+                            <MdPhone className="text-lg sm:text-xl text-white" />
+                          </div>
+                          <span className="text-sm sm:text-base text-white/90 font-medium group-hover:text-white">
+                            +62 812 3456 7890
+                          </span>
+                        </motion.a>
+
+                        <motion.div 
+                          className="flex items-center gap-3 sm:gap-4 p-2 sm:p-3 rounded-lg 
+                            bg-gradient-to-r hover:from-white/10 hover:to-transparent
+                            transition-all duration-300 group"
+                          whileHover={{ x: 10, scale: 1.02 }}
+                        >
+                          <div className="p-2 sm:p-2.5 bg-gradient-to-br from-green-500/20 to-green-600/20 
+                            rounded-lg border border-green-400/20 shadow-lg group-hover:scale-110 transition-all duration-300">
+                            <MdLocationOn className="text-lg sm:text-xl text-white" />
+                          </div>
+                          <span className="text-sm sm:text-base text-white/90 font-medium group-hover:text-white">
+                            Jakarta, Indonesia
+                          </span>
+                        </motion.div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* Enhanced Action Buttons */}
+              <div className="space-y-1.5 sm:space-y-2">
+                <motion.button 
                   onClick={handleStartClick}
-                  className="w-full bg-yellow-400 hover:bg-yellow-300 text-green-800 font-bold 
-                    py-4 px-6 rounded-2xl transition-all duration-300 transform 
-                    hover:scale-[1.02] hover:rotate-1 shadow-lg border-4 border-yellow-300 
-                    flex items-center justify-center gap-3 group relative overflow-hidden
-                    text-base md:text-lg"
+                  className="w-full bg-gradient-to-r from-green-500 via-green-600 to-green-500 text-white 
+                    font-bold py-2 sm:py-3 rounded-lg transition-all transform hover:scale-[1.02] hover:rotate-1 
+                    shadow-lg border border-green-400/30 flex items-center justify-center gap-2
+                    relative overflow-hidden group"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                 >
-                  <RiRocketLine className="text-xl group-hover:animate-bounce" />
-                  <span>{t.buttons.start}</span>
-                  <span className="absolute inset-0 bg-gradient-to-r from-yellow-300/0 via-yellow-300/30 to-yellow-300/0 
-                    animate-shine"></span>
-                </button>
-                <button className="w-full bg-white/90 hover:bg-white text-green-600 font-bold 
-                  py-4 px-6 rounded-2xl transition-all duration-300 transform 
-                  hover:scale-[1.02] hover:-rotate-1 shadow-lg border-4 border-white/70 
-                  flex items-center justify-center gap-3 group relative overflow-hidden
-                  text-base md:text-lg"
+                  <RiRocketLine className="text-base sm:text-lg group-hover:rotate-12 transition-transform" />
+                  <span className="text-xs sm:text-sm relative z-10">{t.buttons.start}</span>
+                  <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 
+                    translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+                </motion.button>
+
+                <motion.button 
+                  className="w-full bg-white/10 backdrop-blur-sm text-white font-bold py-2 sm:py-3 rounded-lg 
+                    transition-all transform hover:scale-[1.02] hover:-rotate-1 
+                    shadow-lg border border-white/20 flex items-center justify-center gap-2
+                    relative overflow-hidden group"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                 >
-                  <BsBook className="text-xl group-hover:animate-bounce" />
-                  <span>{t.buttons.learn}</span>
-                  <BsArrowRightShort className="text-2xl group-hover:translate-x-2 transition-transform" />
-                  <span className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/30 to-white/0 
-                    animate-shine"></span>
-                </button>
+                  <BsBook className="text-base sm:text-lg group-hover:rotate-12 transition-transform" />
+                  <span className="text-xs sm:text-sm relative z-10">{t.buttons.learn}</span>
+                  <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 
+                    translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+                </motion.button>
               </div>
             </div>
           </div>
@@ -593,64 +895,137 @@ function Home() {
       </motion.div>
 
       {/* Controls Container */}
-      <div className="fixed top-0 left-0 right-0 p-4 flex justify-between items-center z-30">
+      <div className="fixed top-0 left-0 right-0 p-2 sm:p-3 md:p-4 flex justify-between items-center z-30">
         {/* Toggle Button */}
         <button
           onClick={() => {
             soundEffects.click.play();
             setIsCardVisible(!isCardVisible);
           }}
-          className={`bg-white/10 backdrop-blur-sm p-3 rounded-full 
+          className={`bg-white/10 backdrop-blur-sm p-2 sm:p-3 rounded-full 
             hover:bg-white/20 transition-all duration-300 transform hover:scale-110 
-            border-2 border-white/30 ${isCardVisible ? 'rotate-0' : 'rotate-180'} group
+            border border-white/30 ${isCardVisible ? 'rotate-0' : 'rotate-180'} group
             shadow-lg`}
         >
-          <IoIosArrowDown className="h-6 w-6 text-white group-hover:text-yellow-300 transition-colors" />
+          <IoIosArrowDown className="h-5 w-5 sm:h-6 sm:w-6 text-white group-hover:text-yellow-300 transition-colors" />
         </button>
 
         {/* Right Controls */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <LanguageToggle currentLang={currentLang} onToggle={toggleLanguage} />
           <ThemeToggle isDark={isDarkTheme} onToggle={toggleTheme} />
         </div>
       </div>
 
-      {/* 3D Scene */}
+      {/* Keep Floating Tip */}
+      <FloatingTip />
+
+      {/* 3D Scene with optimized settings */}
       <div className="absolute inset-0" style={{ zIndex: 10 }}>
         <Canvas
-          camera={{ position: [0, 2, 8], fov: 45 }}
+          camera={cameraSettings}
+          dpr={[1, 2]}
+          performance={{ min: 0.5 }}
+          gl={{
+            powerPreference: "high-performance",
+            antialias: false,
+            stencil: false,
+            depth: true,
+            alpha: false
+          }}
           style={{ 
-            background: isDarkTheme
-              ? 'linear-gradient(to bottom, #1a1a1a, #2d3748)'
-              : 'linear-gradient(to bottom, #7dd3fc, #0ea5e9)'
+            background: sceneSettings.background
           }}
         >
           <Suspense fallback={null}>
-            <ambientLight intensity={isDarkTheme ? 0.5 : 1} />
-            <directionalLight position={[10, 10, 5]} intensity={isDarkTheme ? 1 : 2} castShadow />
-            <spotLight position={[-10, 10, -5]} intensity={isDarkTheme ? 0.8 : 1.5} />
-            <hemisphereLight intensity={0.5} groundColor={isDarkTheme ? "#111111" : "#ffffff"} />
+            <fog attach="fog" args={[sceneSettings.fog.color, sceneSettings.fog.near, sceneSettings.fog.far]} />
+            <color attach="background" args={[sceneSettings.fog.color]} />
+            
+            <ambientLight 
+              intensity={lightSettings.ambient.intensity} 
+            />
+            <directionalLight 
+              position={lightSettings.directional.position} 
+              intensity={lightSettings.directional.intensity}
+              color={lightSettings.directional.color}
+              castShadow={false}
+            />
+            <spotLight 
+              position={lightSettings.spot.position} 
+              intensity={lightSettings.spot.intensity}
+              color={lightSettings.spot.color}
+            />
+            <hemisphereLight 
+              intensity={lightSettings.hemisphere.intensity}
+              color={lightSettings.hemisphere.skyColor}
+              groundColor={lightSettings.hemisphere.groundColor}
+            />
             
             <ParticleField />
             <Model />
             <CloudsGroup />
-            <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
-            <Sparkles count={50} scale={10} size={2} speed={0.4} />
+            <Stars {...sceneSettings.stars} />
+            <Sparkles {...sceneSettings.sparkles} />
             
-            <Environment preset={isDarkTheme ? "night" : "sunset"} />
+            <Environment 
+              preset={isDarkTheme ? "night" : "sunset"}
+              background={false}
+            />
             <OrbitControls 
-              enableZoom={false} 
+              enableZoom={false}
               autoRotate 
-              autoRotateSpeed={0.5}
+              autoRotateSpeed={0.2}
               maxPolarAngle={Math.PI / 2}
               minPolarAngle={Math.PI / 3}
+              enableDamping
+              dampingFactor={0.05}
+              rotateSpeed={0.3}
             />
+
+            {/* Add Particle Wave */}
+            <ParticleWave />
+
+            {/* Update Floating Islands with static colors */}
+            <FloatingIsland position={[-5, 2, -5]} scale={0.8} rotationSpeed={0.001}>
+              <mesh>
+                <boxGeometry args={[1, 0.2, 1]} />
+                <meshStandardMaterial color="#4CAF50" />
+              </mesh>
+              <mesh position={[0, 0.2, 0]}>
+                <cylinderGeometry args={[0.2, 0.4, 0.5, 6]} />
+                <meshStandardMaterial color="#2E7D32" />
+              </mesh>
+            </FloatingIsland>
+
+            <FloatingIsland position={[5, 3, -6]} scale={0.6} rotationSpeed={-0.001}>
+              <mesh>
+                <boxGeometry args={[1, 0.2, 1]} />
+                <meshStandardMaterial color="#2E7D32" />
+              </mesh>
+              <mesh position={[0, 0.2, 0]}>
+                <coneGeometry args={[0.3, 0.6, 6]} />
+                <meshStandardMaterial color="#4CAF50" />
+              </mesh>
+            </FloatingIsland>
           </Suspense>
         </Canvas>
       </div>
     </div>
   );
 }
+
+// Add custom CSS to hide scrollbar but keep functionality
+const style = document.createElement('style');
+style.textContent = `
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+`;
+document.head.appendChild(style);
 
 Home.propTypes = {};
 

@@ -44,22 +44,21 @@ const Navbar = () => {
         className="fixed top-0 left-0 right-0 z-50 font-sans"
         initial={{ y: -100 }}
         animate={{ y: 0 }}
-        transition={{ type: "spring", stiffness: 100 }}
+        transition={{ type: "spring", stiffness: 80, damping: 20 }}
       >
         <motion.div 
-          className={`mx-auto transition-all duration-500 ${
+          className={`mx-auto transition-all duration-300 ${
             scrolled 
-              ? 'bg-white shadow-lg backdrop-blur-md border-b border-gray-200/50' 
-              : 'bg-gradient-to-b from-black/20 to-transparent'
+              ? 'bg-white/95 shadow-md backdrop-blur-md border-b border-gray-200/50' 
+              : 'bg-gradient-to-b from-black/30 to-transparent'
           }`}
         >
           <div className="max-w-7xl mx-auto flex items-center justify-between px-6 py-3">
             {/* Mobile Hamburger Menu - Left */}
             <div className="lg:hidden">
               <motion.button 
-                whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                className={`p-2.5 rounded-xl transition-all duration-300 ${
+                className={`p-2.5 rounded-xl transition-all duration-200 ${
                   scrolled 
                     ? 'bg-green-50 text-green-800 hover:bg-green-100' 
                     : 'bg-white/10 text-white hover:bg-white/20'
@@ -71,73 +70,59 @@ const Navbar = () => {
               </motion.button>
             </div>
 
-            {/* Desktop Logo and Brand - Centered on Mobile */}
+            {/* Desktop Logo and Brand */}
             <div className="flex-1 flex justify-center lg:justify-start">
               <Link to="/island" className="hidden lg:flex items-center">
                 <motion.div
-                  whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   className="flex items-center gap-3 group relative"
                 >
                   {/* Logo Image */}
-                  <motion.img 
+                  <img 
                     src={sahabatDesa} 
                     alt="SahabatDesa Logo" 
                     className="h-20 w-20 object-contain relative z-5 transform-gpu
-                      transition-all duration-300 group-hover:scale-110 drop-shadow-lg"
-                    whileHover={{ 
-                      rotate: [0, -5, 5, 0],
-                      transition: { duration: 0.5 }
-                    }}
+                      transition-all duration-200 group-hover:scale-105"
                   />
 
                   {/* Brand Text */}
                   <div className="flex flex-col">
                     <div className="flex items-center gap-1">
-                      <motion.span 
-                        className={`text-2xl font-bold tracking-tight transition-colors duration-300
+                      <span 
+                        className={`text-2xl font-bold tracking-tight transition-colors duration-200
                           ${scrolled ? 'text-green-800' : 'text-white'}`}
                       >
                         Sahabat
-                      </motion.span>
-                      <motion.span 
-                        className={`text-2xl font-bold transition-all duration-300
+                      </span>
+                      <span 
+                        className={`text-2xl font-bold transition-all duration-200
                           ${scrolled ? 'text-green-600' : 'text-green-400'}
                           group-hover:text-green-500`}
-                        whileHover={{ scale: 1.05 }}
                       >
                         Desa
-                      </motion.span>
+                      </span>
                     </div>
                     <div className="relative">
-                      <motion.span 
-                        className={`text-xs font-medium transition-colors duration-300 relative z-10
+                      <span 
+                        className={`text-xs font-medium transition-colors duration-200
                           ${scrolled ? 'text-green-700/80' : 'text-white/90'}`}
                       >
                         Membangun Desa Bersama
-                      </motion.span>
-                      {/* Animated Underline */}
-                      <motion.div 
+                      </span>
+                      <div 
                         className={`absolute -bottom-0.5 left-0 h-[2px] w-0 group-hover:w-full
-                          transition-all duration-300 rounded-full
+                          transition-all duration-200 rounded-full
                           ${scrolled ? 'bg-green-500/30' : 'bg-white/30'}`}
                       />
                     </div>
                   </div>
-
-                  {/* Hover Effect Light */}
-                  <motion.div
-                    className={`absolute -inset-1 rounded-3xl opacity-0 group-hover:opacity-10 transition-opacity duration-300
-                      ${scrolled ? 'bg-green-300' : 'bg-white'} blur-xl`}
-                  />
                 </motion.div>
               </Link>
             </div>
 
             {/* Desktop Navigation */}
-            <div className="hidden lg:flex items-center gap-6">
-              {/* Main Navigation Links */}
-              <div className="flex items-center gap-2 bg-white/5 backdrop-blur-md px-3 py-1.5 rounded-2xl border border-white/10">
+            <div className="hidden lg:flex items-center gap-4">
+              <div className="flex items-center gap-2">
                 <NavLink to="/crowdfunding" icon={<MdAttachMoney />} scrolled={scrolled}>
                   Crowdfunding
                 </NavLink>
@@ -153,28 +138,25 @@ const Navbar = () => {
               </div>
 
               {/* User Actions */}
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
                 {/* Search Button */}
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className={`px-4 py-2.5 rounded-xl transition-all duration-300 flex items-center gap-2 ${
+                <button
+                  className={`w-10 h-10 flex items-center justify-center transition-all duration-200 rounded-xl group 
+                    hover:bg-opacity-80 ${
                     scrolled 
                       ? 'bg-green-50 text-green-800 hover:bg-green-100' 
                       : 'bg-white/10 text-white hover:bg-white/20'
                   }`}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                   </svg>
-                  <span className="text-sm font-medium">Cari</span>
-                </motion.button>
+                </button>
 
                 {/* Notification Button */}
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className={`p-2.5 rounded-xl transition-all duration-300 relative ${
+                <button
+                  className={`w-10 h-10 flex items-center justify-center transition-all duration-200 rounded-xl group 
+                    hover:bg-opacity-80 relative ${
                     scrolled 
                       ? 'bg-green-50 text-green-800 hover:bg-green-100' 
                       : 'bg-white/10 text-white hover:bg-white/20'
@@ -182,59 +164,24 @@ const Navbar = () => {
                   onClick={() => setShowNotification(!showNotification)}
                 >
                   <FaBell className="text-lg" />
-                  <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
-                </motion.button>
+                  <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full" />
+                </button>
 
                 {/* User Profile Button */}
-                <motion.div
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-xl transition-all duration-300 cursor-pointer ${
+                <div
+                  className={`w-10 h-10 flex items-center justify-center transition-all duration-200 rounded-xl 
+                    hover:bg-opacity-80 cursor-pointer ${
                     scrolled 
                       ? 'bg-green-50 text-green-800 hover:bg-green-100' 
                       : 'bg-white/10 text-white hover:bg-white/20'
                   }`}
                 >
-                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center text-white">
+                  <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-green-400 to-green-600 
+                    flex items-center justify-center text-white">
                     <FaUser className="text-sm" />
                   </div>
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium">Guest User</span>
-                    <span className={`text-xs ${scrolled ? 'text-green-600' : 'text-green-300'}`}>
-                      Masuk / Daftar
-                    </span>
-                  </div>
-                </motion.div>
+                </div>
               </div>
-            </div>
-
-            {/* Mobile Actions */}
-            <div className="lg:hidden flex items-center gap-2">
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className={`p-2.5 rounded-xl transition-all duration-300 relative ${
-                  scrolled 
-                    ? 'bg-green-50 text-green-800 hover:bg-green-100' 
-                    : 'bg-white/10 text-white hover:bg-white/20'
-                }`}
-                onClick={() => setShowNotification(!showNotification)}
-              >
-                <FaBell className="text-lg" />
-                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
-              </motion.button>
-
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className={`p-2.5 rounded-xl transition-all duration-300 ${
-                  scrolled 
-                    ? 'bg-green-50 text-green-800 hover:bg-green-100' 
-                    : 'bg-white/10 text-white hover:bg-white/20'
-                }`}
-              >
-                <FaUser className="text-lg" />
-              </motion.button>
             </div>
           </div>
         </motion.div>
@@ -432,7 +379,7 @@ const Navbar = () => {
                     <span className="text-green-600 font-medium">v1.0.0</span>
                   </div>
                   <div className="text-xs text-gray-500">
-                    Made with ❤️ in Indonesia
+                    BelumMakan Team 2024
                   </div>
                 </div>
               </motion.div>
@@ -461,42 +408,31 @@ const Navbar = () => {
   );
 };
 
-// Desktop NavLink component with hover effects
+// Simplified NavLink component
 const NavLink = ({ to, children, icon, scrolled }) => {
   const location = useLocation();
   const isActive = location.pathname === to;
 
   return (
     <Link to={to}>
-      <motion.div
-        className={`relative px-4 py-2.5 transition-all duration-300 rounded-xl ${
+      <div
+        className={`px-3 py-2 rounded-lg transition-all duration-200 flex items-center gap-2 ${
           isActive 
             ? scrolled ? 'bg-green-100 text-green-800' : 'bg-white/20 text-white'
             : scrolled ? 'hover:bg-green-50 text-gray-700' : 'hover:bg-white/10 text-white'
         }`}
-        whileHover={{ scale: 1.03 }}
-        whileTap={{ scale: 0.98 }}
       >
-        <div className="flex items-center gap-2 text-sm font-medium">
-          <span className={`text-lg ${
-            isActive 
-              ? scrolled ? 'text-green-600' : 'text-green-400'
-              : scrolled ? 'text-green-500' : 'text-green-400/70'
-          }`}>
-            {icon}
-          </span>
-          <span>{children}</span>
-        </div>
-        {isActive && (
-          <motion.div
-            className={`absolute -bottom-1 left-2 right-2 h-0.5 ${
-              scrolled ? 'bg-green-500' : 'bg-green-400'
-            }`}
-            layoutId="activeTab"
-            transition={{ type: "spring", stiffness: 300 }}
-          />
-        )}
-      </motion.div>
+        <span className={`text-lg ${
+          isActive 
+            ? scrolled ? 'text-green-600' : 'text-green-400'
+            : scrolled ? 'text-green-500' : 'text-green-400/70'
+        }`}>
+          {icon}
+        </span>
+        <span className="text-sm font-medium">
+          {children}
+        </span>
+      </div>
     </Link>
   );
 };
@@ -509,7 +445,7 @@ const MobileNavLink = ({ to, children, icon }) => {
   return (
     <Link to={to}>
       <motion.div
-        className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ${
+        className={`flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all duration-300 ${
           isActive 
             ? 'bg-green-100 text-green-800' 
             : 'hover:bg-gray-50 text-gray-700'

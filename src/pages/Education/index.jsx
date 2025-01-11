@@ -6,6 +6,7 @@ import {
 } from 'react-icons/fa';
 import PropTypes from 'prop-types';
 import Layout from '../../components/Layout';
+import digital from '../../assets/Desa1/digital.jpeg';
 
 const courses = [
   {
@@ -18,7 +19,7 @@ const courses = [
     students: 1250,
     rating: 4.8,
     reviews: 156,
-    image: '/images/courses/umkm-digital.jpg',
+    image: digital,
     tags: ['Bisnis', 'Digital Marketing', 'Keuangan']
   },
   // ... more courses

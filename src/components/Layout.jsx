@@ -158,7 +158,7 @@ const Layout = ({ children, pageTitle, pageDescription, gradientFrom, gradientTo
                 transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl`}>
                 Mulai Sekarang
               </button>
-              <button className={`w-full sm:w-auto px-6 md:px-8 py-3 md:py-4 border-2 border-${textColor} text-${textColor} rounded-full font-semibold text-sm md:text-base
+              <button className={`w-full sm:w-auto px-6 md:px-8 py-3 md:py-4 border-2 border-${textColor} text-green-500 rounded-full font-semibold text-sm md:text-base
                 hover:bg-white/10 transition-all duration-300`}>
                 Pelajari Lebih Lanjut
               </button>

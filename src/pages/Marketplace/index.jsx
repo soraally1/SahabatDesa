@@ -5,7 +5,7 @@ import {
 } from 'react-icons/fa';
 import PropTypes from 'prop-types';
 import Layout from '../../components/Layout';
-
+import bambu from '../../assets/Desa1/bambu.jpg';
 const categories = [
   {
     id: 1,
@@ -32,7 +32,7 @@ const products = [
     id: 1,
     name: 'Tas Anyaman Bambu',
     price: 'Rp 250.000',
-    image: '/images/products/tas-bambu.jpg',
+    image: bambu,
     seller: 'UMKM Kreatif Desa Sukamaju',
     rating: 4.8,
     reviews: 24,
