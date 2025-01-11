@@ -849,7 +849,7 @@ function Home() {
                             <MdLocationOn className="text-lg sm:text-xl text-white" />
                           </div>
                           <span className="text-sm sm:text-base text-white/90 font-medium group-hover:text-white">
-                            Jakarta, Indonesia
+                            Semarang, Jawa Tengah
                           </span>
                         </motion.div>
                       </div>
