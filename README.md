@@ -1,7 +1,7 @@
 # 🌴 SahabatDesa - Platform Digital Desa Indonesia
 
 <div align="center">
-  <img src="public/models/Desa1.glb" alt="SahabatDesa Logo" width="200" style="border-radius: 20px;" />
+  <img src="src\assets\SahabatDesa.svg" alt="SahabatDesa Logo" width="200" style="border-radius: 20px;" />
   <p><em>Menghubungkan Potensi Desa Indonesia</em></p>
 </div>
 
