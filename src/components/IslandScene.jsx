@@ -52,6 +52,21 @@ const useThrottledCallback = (callback, delay) => {
   }, [callback, isThrottled, delay]);
 };
 
+// Add WebGL detection and fallback handling
+const useWebGLAvailability = () => {
+  const [hasWebGL, setHasWebGL] = useState(true);
+  const [isContextLost, setIsContextLost] = useState(false);
+
+  useEffect(() => {
+    const canvas = document.createElement('canvas');
+    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+    
+    setHasWebGL(!!gl);
+  }, []);
+
+  return { hasWebGL, isContextLost, setIsContextLost };
+};
+
 // Island component with hover text
 const Island = React.memo(({ position, rotation, scale, modelPath, onClick, name }) => {
   const { scene } = useGLTF(modelPath, {
@@ -382,6 +397,7 @@ const InitialCameraAnimation = () => {
 
 // Main scene component
 const IslandScene = () => {
+  const { hasWebGL, isContextLost, setIsContextLost } = useWebGLAvailability();
   const [selectedIsland, setSelectedIsland] = useState(null);
   const [isZooming, setIsZooming] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
@@ -591,6 +607,54 @@ const IslandScene = () => {
       controlsRef.current.enabled = true;
     }
   };
+
+  // Handle WebGL context loss
+  const handleContextLost = useCallback(() => {
+    console.warn('WebGL context lost');
+    setIsContextLost(true);
+  }, [setIsContextLost]);
+
+  // Handle WebGL context restore
+  const handleContextRestore = useCallback(() => {
+    console.log('WebGL context restored');
+    setIsContextLost(false);
+  }, [setIsContextLost]);
+
+  // Fallback UI when WebGL is not available or context is lost
+  if (!hasWebGL || isContextLost) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-900 to-indigo-900 flex items-center justify-center p-4">
+        <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 max-w-md w-full">
+          <div className="text-center space-y-4">
+            <div className="bg-red-500/20 p-3 rounded-full w-fit mx-auto">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-red-500" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <h2 className="text-xl font-bold text-white">3D Scene Tidak Tersedia</h2>
+            <p className="text-white/80 text-sm">
+              Browser Anda tidak mendukung WebGL atau mengalami masalah rendering 3D.
+              Silakan coba solusi berikut:
+            </p>
+            <ul className="text-white/70 text-sm space-y-2 text-left list-disc list-inside">
+              <li>Aktifkan akselerasi hardware di browser Anda</li>
+              <li>Perbarui driver kartu grafis</li>
+              <li>Gunakan browser modern seperti Chrome atau Firefox versi terbaru</li>
+              <li>Coba akses melalui perangkat lain</li>
+            </ul>
+            <div className="pt-4">
+              <button
+                onClick={() => window.location.reload()}
+                className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-sm transition-colors"
+              >
+                Muat Ulang Halaman
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <motion.div 
@@ -1291,10 +1355,22 @@ const IslandScene = () => {
 
       <Canvas
         camera={cameraSettings}
-        shadows
-        dpr={[1, isMobile ? 1.5 : 2]} // Lower DPR on mobile
-        performance={{ min: 0.1 }} // Allow more aggressive performance scaling
-        gl={sceneSettings.gl}
+        shadows={!isMobile}
+        dpr={1}
+        performance={{ min: 0.1, max: 1 }}
+        gl={{
+          powerPreference: "low-power",
+          failIfMajorPerformanceCaveat: false,
+          preserveDrawingBuffer: true,
+          antialias: false,
+          depth: true,
+          stencil: false,
+          alpha: false,
+          precision: 'lowp'
+        }}
+        onContextLost={handleContextLost}
+        onContextRestored={handleContextRestore}
+        frameloop={isContextLost ? 'never' : 'always'}
       >
         <AdaptiveDpr pixelated />
         <AdaptiveEvents />
