@@ -834,7 +834,7 @@ function Home() {
                             <MdPhone className="text-lg sm:text-xl text-white" />
                           </div>
                           <span className="text-sm sm:text-base text-white/90 font-medium group-hover:text-white">
-                            +62 812 3456 7890
+                            +62 000 0000 0000
                           </span>
                         </motion.a>
 

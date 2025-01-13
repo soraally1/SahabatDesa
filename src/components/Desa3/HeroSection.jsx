@@ -47,7 +47,7 @@ const HeroSection = () => (
           transition={{ delay: 0.6, duration: 0.8 }}
           className="max-w-xl sm:max-w-2xl mx-auto text-base sm:text-lg md:text-xl text-white/80 mb-8 sm:mb-12 font-light px-4"
         >
-          Selamat datang di Desa Cikoneng, sebuah desa tersembunyi di Provinsi Jawa Barat
+          Permata tersembunyi yang menawarkan keaslian hidup di pedesaan dan keindahan alam yang tiada tara.
         </motion.p>
       </motion.div>
     </div>

@@ -39,54 +39,104 @@ const useResizeObserver = () => {
   return size;
 };
 
+// Add performance optimization hooks
+const useThrottledCallback = (callback, delay) => {
+  const [isThrottled, setIsThrottled] = useState(false);
+  
+  return useCallback((...args) => {
+    if (!isThrottled) {
+      callback(...args);
+      setIsThrottled(true);
+      setTimeout(() => setIsThrottled(false), delay);
+    }
+  }, [callback, isThrottled, delay]);
+};
+
 // Island component with hover text
 const Island = React.memo(({ position, rotation, scale, modelPath, onClick, name }) => {
   const { scene } = useGLTF(modelPath, {
-    draco: true // Enable draco compression
+    draco: true,
+    meshoptDecoder: true, // Enable Meshopt compression
+    powerPreference: "high-performance"
   });
   const [hovered, setHovered] = useState(false);
   const { width } = useResizeObserver();
   const isMobile = width < 768;
   const modelRef = useRef();
   
-  const clonedScene = useMemo(() => scene.clone(), [scene]);
+  // Optimize model cloning
+  const clonedScene = useMemo(() => {
+    const clone = scene.clone();
+    // Optimize geometries
+    clone.traverse((object) => {
+      if (object.isMesh) {
+        // Merge geometries when possible
+        object.geometry.setDrawRange(0, Infinity);
+        object.geometry.computeBoundingSphere();
+        // Optimize materials
+        if (object.material) {
+          object.material.precision = 'lowp'; // Use low precision on mobile
+          object.material.dithering = false;
+        }
+      }
+    });
+    return clone;
+  }, [scene]);
 
-  // Clean up memory when component unmounts
+  // Memory cleanup
   useEffect(() => {
     return () => {
-      // Dispose of geometries and materials
       clonedScene.traverse((object) => {
-        if (object.geometry) object.geometry.dispose();
+        if (object.geometry) {
+          object.geometry.dispose();
+        }
         if (object.material) {
           if (Array.isArray(object.material)) {
-            object.material.forEach(material => material.dispose());
+            object.material.forEach(material => {
+              material.dispose();
+              if (material.map) material.map.dispose();
+              if (material.lightMap) material.lightMap.dispose();
+              if (material.bumpMap) material.bumpMap.dispose();
+              if (material.normalMap) material.normalMap.dispose();
+              if (material.specularMap) material.specularMap.dispose();
+              if (material.envMap) material.envMap.dispose();
+            });
           } else {
             object.material.dispose();
+            if (object.material.map) object.material.map.dispose();
+            if (object.material.lightMap) object.material.lightMap.dispose();
+            if (object.material.bumpMap) object.material.bumpMap.dispose();
+            if (object.material.normalMap) object.material.normalMap.dispose();
+            if (object.material.specularMap) object.material.specularMap.dispose();
+            if (object.material.envMap) object.material.envMap.dispose();
           }
         }
       });
     };
   }, [clonedScene]);
 
-  const handlePointerOver = useCallback((e) => {
+  // Throttle hover events
+  const handlePointerOver = useThrottledCallback((e) => {
     e.stopPropagation();
     document.body.style.cursor = 'pointer';
     setHovered(true);
-  }, []);
+  }, 100);
 
-  const handlePointerOut = useCallback(() => {
+  const handlePointerOut = useThrottledCallback(() => {
     document.body.style.cursor = 'default';
     setHovered(false);
-  }, []);
+  }, 100);
 
-  const handleClick = useCallback((event) => {
+  // Throttle click events
+  const handleClick = useThrottledCallback((event) => {
     event.stopPropagation();
     onClick();
-  }, [onClick]);
+  }, 300);
 
+  // Optimize text config
   const textConfig = useMemo(() => ({
-    fontSize: isMobile ? 20 : 30,
-    maxWidth: isMobile ? 150 : 200,
+    fontSize: isMobile ? 15 : 25, // Reduced font size
+    maxWidth: isMobile ? 120 : 180, // Reduced max width
     color: "white",
     anchorX: "center",
     anchorY: "middle",
@@ -130,7 +180,7 @@ const Island = React.memo(({ position, rotation, scale, modelPath, onClick, name
             />
           </Text>
           <pointLight
-            intensity={2}
+            intensity={1}
             distance={isMobile ? 30 : 50}
             color="white"
             position={[0, 0, 20]}
@@ -284,13 +334,12 @@ CartoonCloud.propTypes = {
 
 CartoonCloud.displayName = 'CartoonCloud';
 
-// Optimize CloudsGroup with fewer clouds
+// Optimize CloudsGroup with fewer clouds and simpler geometry
 const CloudsGroup = React.memo(() => {
   const cloudPositions = useMemo(() => [
-    { position: [-500, 150, -400], scale: 1.5, speed: 0.3 },
-    { position: [500, 200, -600], scale: 2.0, speed: 0.2 },
-    { position: [-200, 250, -500], scale: 1.3, speed: 0.4 }
-  ], []);
+    { position: [-400, 150, -400], scale: 1.5, speed: 0.2 },
+    { position: [400, 200, -500], scale: 2.0, speed: 0.15 }
+  ], []); // Reduced number of clouds
 
   return (
     <group>
@@ -411,65 +460,66 @@ const IslandScene = () => {
 
   // Optimize camera settings
   const cameraSettings = useMemo(() => ({
-    position: isMobile ? [0, 50, 300] : [0, 300, 1000],
-    fov: isMobile ? 75 : 45,
-    near: 0.1,
-    far: 1500,
-    maxDistance: isMobile ? 400 : 800,
-    minDistance: isMobile ? 100 : 200
+    position: isMobile ? [0, 50, 250] : [0, 250, 900], // Reduced distance
+    fov: isMobile ? 70 : 40, // Adjusted FOV
+    near: 1,
+    far: 1000, // Reduced far plane
+    maxDistance: isMobile ? 300 : 600,
+    minDistance: isMobile ? 80 : 150
   }), [isMobile]);
 
   // Optimize scene settings
   const sceneSettings = useMemo(() => ({
     fog: {
       color: '#87CEEB',
-      near: 400,
-      far: 1000
+      near: 300,
+      far: 800 // Reduced fog distance
     },
     gl: {
       powerPreference: "high-performance",
       antialias: false,
       stencil: false,
       depth: true,
-      alpha: false
+      alpha: false,
+      precision: isMobile ? 'lowp' : 'mediump' // Lower precision on mobile
     }
-  }), []);
+  }), [isMobile]);
 
   // Optimize light settings
   const lightSettings = useMemo(() => ({
     ambient: {
-      intensity: 0.4
+      intensity: 0.02 // Reduced intensity
     },
     directional: {
-      position: [100, 100, 50],
-      intensity: 0.8,
+      position: [50, 50, 25], // Simplified position
+      intensity: 0.3,
       shadow: {
-        mapSize: { width: 512, height: 512 }, // Reduced from 1024
+        mapSize: { width: isMobile ? 256 : 512, height: isMobile ? 256 : 512 }, // Reduced shadow map size
         camera: {
-          far: 1000,
+          far: 300, // Reduced shadow distance
           near: 1,
-          left: -300,
-          right: 300,
-          top: 300,
-          bottom: -300
+          left: -200,
+          right: 200,
+          top: 200,
+          bottom: -200
         },
         bias: -0.001
       }
     }
-  }), []);
+  }), [isMobile]);
 
-  // Add mobile navigation controls
-  const handlePrevIsland = () => {
+  // Throttle navigation handlers
+  const handlePrevIsland = useThrottledCallback(() => {
     setCurrentIslandIndex((prev) => (prev === 0 ? islands.length - 1 : prev - 1));
     setSelectedIsland(islands[(currentIslandIndex === 0 ? islands.length - 1 : currentIslandIndex - 1)]);
     setIsZooming(true);
-  };
+  }, 300);
 
-  const handleNextIsland = () => {
+  const handleNextIsland = useThrottledCallback(() => {
     setCurrentIslandIndex((prev) => (prev === islands.length - 1 ? 0 : prev + 1));
     setSelectedIsland(islands[(currentIslandIndex === islands.length - 1 ? 0 : currentIslandIndex + 1)]);
     setIsZooming(true);
-  };
+  }, 300);
 
   // Optimize touch handling
   const touchState = useRef({ startX: null, startY: null, startTime: null });
@@ -546,7 +596,7 @@ const IslandScene = () => {
     <motion.div 
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      transition={{ duration: 1.5 }}
+      transition={{ duration: 1 }}
       style={{ width: '100vw', height: '100vh' }}
       onTouchStart={isMobile ? handleTouchStart : undefined}
       onTouchEnd={isMobile ? handleTouchEnd : undefined}
@@ -1242,8 +1292,8 @@ const IslandScene = () => {
       <Canvas
         camera={cameraSettings}
         shadows
-        dpr={[1, 1.5]} // Reduced max DPR
-        performance={{ min: 0.5 }}
+        dpr={[1, isMobile ? 1.5 : 2]} // Lower DPR on mobile
+        performance={{ min: 0.1 }} // Allow more aggressive performance scaling
         gl={sceneSettings.gl}
       >
         <AdaptiveDpr pixelated />
@@ -1282,8 +1332,8 @@ const IslandScene = () => {
             enabled={!isEntering && !isMobile}
             enableDamping={true}
             dampingFactor={0.05}
-            rotateSpeed={0.4}
-            touchRotateSpeed={0.2}
+            rotateSpeed={0.3}
+            touchRotateSpeed={0.15}
             target={new THREE.Vector3(0, 0, 0)}
             touches={{
               ONE: THREE.TOUCH.ROTATE,
